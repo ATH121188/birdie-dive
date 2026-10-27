@@ -305,7 +305,7 @@ button.chip { cursor: pointer; min-height: 30px; }
   <footer id="foot"></footer>
 </div>
 <div id="toast" hidden></div>
-<div id="ver">v1.3</div>
+<div id="ver">v1.4</div>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
@@ -1635,6 +1635,26 @@ function grade(g, x, y) {
   return [gx, gy];
 }
 function r2(v) { return Math.round(v * 100) / 100; }
+// Preview-only roll: the same physics as simulate() (slopes, friction) but the cup, the flagstick and the edge of the green are ignored,
+// so the length of the preview never jumps just because the ball would drop, hit the pole or leave the green. Returns x,y pairs plus the total roll length.
+function previewRoll(g, aimDeg, power) {
+  const base = Math.atan2(g.hx, g.hy), th = base + aimDeg * Math.PI / 180, v0 = 0.12 * effPower(power);
+  let x = 0, y = 0, vx = v0 * Math.sin(th), vy = v0 * Math.cos(th), t = 0, step = 0, len = 0;
+  const pts = [0, 0], cum = [0];
+  while (t < 14) {
+    const [gx, gy] = grade(g, x, y);
+    const ax = -G_ACC * gx, ay = -G_ACC * gy;
+    vx += ax * DT; vy += ay * DT;
+    const sp = Math.hypot(vx, vy);
+    if (sp <= FRIC * DT) { vx = 0; vy = 0; if (Math.hypot(ax, ay) <= FRIC) break; } else { const k = (sp - FRIC * DT) / sp; vx *= k; vy *= k; }
+    const nx = x + vx * DT, ny = y + vy * DT; len += Math.hypot(nx - x, ny - y); x = nx; y = ny; t += DT; step++;
+    if (step % 6 === 0) { pts.push(x, y); cum.push(len); }
+    if (Math.abs(x) > 60 || y > 90 || y < -40) break;
+  }
+  pts.push(x, y); cum.push(len);
+  return { pts, cum, total: len };
+}
+
 function simulate(g, aimDeg, power) {
   const base = Math.atan2(g.hx, g.hy), th = base + aimDeg * Math.PI / 180;
   const v0 = 0.12 * effPower(power);
@@ -5935,12 +5955,12 @@ function makeView(cv, g, seed) {
       if (!pull) { ctx.font = '800 11px Nunito, sans-serif'; ctx.textAlign = 'center'; ctx.fillText('PULL TO AIM', ic.x, Math.min(ic.y + 31, h - 6)); ctx.textAlign = 'left'; }
     }
     if (o.aimUI) { // path preview: the first third of the real rolling path (slopes included) for the current aim and power
-      const key = (o.aim || 0).toFixed(2) + '|' + Math.round(pw * 2);
-      if (!pv || pv.key !== key) { const sm = simulate(g, o.aim || 0, pw), pp = sm.path, cum = [0]; for (let q = 1; q < pp.length / 2; q++) cum.push(cum[q - 1] + Math.hypot(pp[2 * q] - pp[2 * q - 2], pp[2 * q + 1] - pp[2 * q - 1])); pv = { key, pp, cum, tot: cum[cum.length - 1] }; }
-      const lim = pv.tot / 3, pts = [];
+      const key = (o.aim || 0).toFixed(1) + '|' + Math.round(pw);
+      if (!pv || pv.key !== key) pv = Object.assign({ key }, previewRoll(g, o.aim || 0, pw));
+      const lim = pv.total / 3, pts = [];
       for (let q = 0; q < pv.cum.length; q++) {
-        if (pv.cum[q] <= lim) pts.push([pv.pp[2 * q], pv.pp[2 * q + 1]]);
-        else { const f = (lim - pv.cum[q - 1]) / (pv.cum[q] - pv.cum[q - 1] || 1); pts.push([pv.pp[2 * q - 2] + (pv.pp[2 * q] - pv.pp[2 * q - 2]) * f, pv.pp[2 * q - 1] + (pv.pp[2 * q + 1] - pv.pp[2 * q - 1]) * f]); break; }
+        if (pv.cum[q] <= lim) pts.push([pv.pts[2 * q], pv.pts[2 * q + 1]]);
+        else { const f = (lim - pv.cum[q - 1]) / (pv.cum[q] - pv.cum[q - 1] || 1); pts.push([pv.pts[2 * q - 2] + (pv.pts[2 * q] - pv.pts[2 * q - 2]) * f, pv.pts[2 * q - 1] + (pv.pts[2 * q + 1] - pv.pts[2 * q - 1]) * f]); break; }
       }
       if (pts.length > 1) {
         const sc = pts.map(([x, y]) => { const [uu, vv] = toUV(x, y); return P(uu, vv, Z(uu, vv) + ZL); });
@@ -6373,7 +6393,7 @@ function makePongView(cv, rk, seed) {
   'use strict';
   const TS = window.__TS || 1;
   const D = ms => Math.max(40, Math.round(ms * TS));
-  const NR = 10, TQ = 15000, KQ = 25000, VT = 15000, RT = 8000, RK = 12000, PUTT_MS = 10000, PICK_MS = 9000, GRACE = 2200, GATE_MAX = 9000;
+  const NR = 10, TQ = 15000, KQ = 25000, VT = 15000, RT = 8000, RK = 12000, PUTT_MS = 10000, PICK_MS = 9000, GRACE = 2200, GATE_MAX = 9000, BEAT_MS = 8000, LIVE_MS = 30000;
   const GATED = ['question', 'vote', 'putt']; // timed phases wait for every phone to confirm it has the screen before the clock starts
   const COLORS = ['#FF6B6B', '#FF9F43', '#FFD23F', '#B6F06A', '#2EE6D6', '#5BB8FF', '#A78BFA', '#FF7EC8'];
   const MAXP = 8;
@@ -6419,6 +6439,16 @@ function makePongView(cv, rk, seed) {
   const pName = u => (P[u] && P[u].n) || 'Player';
   const pCol = u => (P[u] && COLORS.includes(P[u].c)) ? P[u].c : '#8EA99C';
   const dotEl = u => h('span', { class: 'dot', style: 'background:' + pCol(u) });
+  // presence: phones in the lobby stamp their player record every few seconds; a record that has gone quiet is a ghost (closed tab, other phone) and is ignored
+  const isLive = u => !!P[u] && (u === uid || (P[u].s && Date.now() - P[u].s < LIVE_MS));
+  const liveIds = () => Object.keys(P).filter(isLive);
+  let lastBeat = 0, resetStep = false;
+  function beat(force) {
+    if (!db || !S || S.phase !== 'lobby' || !P[uid] || leftGid === S.gid) return;
+    if (!force && Date.now() - lastBeat < BEAT_MS) return;
+    lastBeat = Date.now();
+    const gid = S.gid; W(() => db.doc(`games/${gid}/players/${uid}`).set({ s: Date.now() }, { merge: true }), true);
+  }
   const roundKey = () => S.gid + ':' + S.round;
 
   async function W(fn, quiet) {
@@ -6633,9 +6663,17 @@ function makePongView(cv, rk, seed) {
     const ns = { gid, hostId: uid, phase: 'lobby', round: 0, seq: 1, t0: Date.now(), dur: 0, plan: null, pl: [] };
     await W(() => lobbyRef().set(ns));
   }
+  // hard reset: a brand-new lobby for everyone. Every phone drops what it was doing and rejoins by itself with its saved name; ghosts do not come back.
+  async function hardReset() {
+    const gid = 'g' + Date.now().toString(36);
+    const ns = { gid, hostId: uid, phase: 'lobby', round: 0, seq: 1, t0: Date.now(), dur: 0, plan: null, pl: [], reset: Date.now() };
+    if (await W(() => lobbyRef().set(ns))) { leftGid = null; resetStep = false; toast('Lobby reset. Everyone rejoins.'); }
+  }
+  const resetBtn = (cls, label) => { const ask = 'Kick everyone and restart? Tap again'; const b = h('button', { class: cls, onclick: () => { if (!resetStep) { resetStep = true; b.textContent = ask; setTimeout(() => { resetStep = false; b.textContent = label; }, 3500); return; } hardReset(); } }, resetStep ? ask : label); return b; };
   async function startGame() {
-    const pl = Object.keys(P).sort((a, b) => (P[a].j || 0) - (P[b].j || 0)).slice(0, MAXP);
+    const pl = liveIds().sort((a, b) => (P[a].j || 0) - (P[b].j || 0)).slice(0, MAXP);
     if (!pl.length) return;
+    if (!P[uid]) return;
     // deal from the group's saved shuffled deck so questions don't repeat until every one has been used
     let pick = null;
     try {
@@ -6746,6 +6784,7 @@ function makePongView(cv, rk, seed) {
       lastTot = tv;
       right.append(h('span', { class: 'chip' }, S.phase === 'final' ? 'Final' : `Round ${S.round + 1}/${NR}`));
       right.append(h('span', { class: 'chip score' + (bump ? ' bump' : '') }, tv + ' pts'));
+      if (isHost()) right.append(resetBtn('chip', '⟲ Reset'));
       if (isHost() && ['reveal', 'replay', 'vote', 'pick'].includes(S.phase)) right.append(h('button', { class: 'chip', onclick: hostSkip }, 'Next ▸'));
     }
     if (S && uid && leftGid !== S.gid) {
@@ -6812,12 +6851,12 @@ function makePongView(cv, rk, seed) {
     const startBtn = h('button', { class: 'btn gold big', onclick: startGame }, 'Start game');
     async function join() {
       const n = nameIn.value.trim().slice(0, 14) || 'Player';
-      if (!P[uid] && Object.keys(P).length >= MAXP) { toast('This game is full.'); return; }
+      if (!P[uid] && liveIds().length >= MAXP) { toast('This game is full.'); return; }
       store.set('bd_name', n);
-      const taken = new Set(Object.keys(P).filter(u => u !== uid).map(u => P[u].c));
+      const taken = new Set(liveIds().filter(u => u !== uid).map(u => P[u].c));
       let c = myColor; if (!c || taken.has(c)) c = COLORS.find(x => !taken.has(x)) || COLORS[0];
       myColor = c; store.set('bd_color', c);
-      await W(() => db.doc(`games/${S.gid}/players/${uid}`).set({ n, c, j: (P[uid] && P[uid].j) || Date.now() }));
+      await W(() => db.doc(`games/${S.gid}/players/${uid}`).set({ n, c, j: (P[uid] && P[uid].j) || Date.now(), s: Date.now() })); lastBeat = Date.now();
     }
     const root = h('div', { class: 'col', style: 'gap:16px' },
       h('h1', { class: 'title' }, 'Birdie Dive', h('small', {}, 'Lobby')),
@@ -6825,20 +6864,27 @@ function makePongView(cv, rk, seed) {
       h('div', { class: 'card' }, h('span', { class: 'label' }, 'Players'), list, note,
         h('span', { class: 'label' }, 'Mini-games'),
         (() => { const sel = h('select', { class: 'inp', 'aria-label': 'Mini-games', onchange: () => store.set('bd_mg', sel.value) }, [['mixed', 'Mixed: putting and cup pong'], ['putt', 'Putting only'], ['pong', 'Cup pong only']].map(o => h('option', { value: o[0] }, o[1]))); sel.value = store.get('bd_mg') || 'mixed'; return sel; })(),
-        startBtn));
+        startBtn,
+        h('div', { style: 'text-align:center;margin-top:6px' }, resetBtn('btn ghost', 'Reset lobby (everyone rejoins)'))));
+    let lastListDraw = 0, lastSweep = 0;
     return {
       root,
       update() {
         const joined = !!P[uid];
-        const taken = new Set(Object.keys(P).filter(u => u !== uid).map(u => P[u].c));
+        const taken = new Set(liveIds().filter(u => u !== uid).map(u => P[u].c));
         if (!myColor || taken.has(myColor)) myColor = COLORS.find(x => !taken.has(x)) || COLORS[0];
         sw.replaceChildren(...COLORS.map(c => h('button', { class: 'sw' + (c === myColor ? ' sel' : ''), style: 'background:' + c, 'aria-label': 'Color', disabled: taken.has(c), onclick: () => { myColor = c; store.set('bd_color', c); if (P[uid]) join(); else this.update(); } })));
-        const ids = Object.keys(P).sort((a, b) => (P[a].j || 0) - (P[b].j || 0));
+        const ids = liveIds().sort((a, b) => (P[a].j || 0) - (P[b].j || 0));
         list.replaceChildren(...(ids.length ? ids.map(u => h('div', { class: 'row' + (u === uid ? ' me' : '') }, dotEl(u), h('span', { class: 'grow name' }, pName(u)), u === S.hostId ? h('span', { class: 'badge' }, 'Host') : null)) : [h('p', { class: 'muted' }, 'Nobody has joined yet.')]));
         joinBtn.textContent = joined ? 'Update name or color' : 'Join game';
         startBtn.hidden = !(isHost() && joined);
         note.textContent = !joined ? 'Join to appear on the list.' : isHost() ? (ids.length < 2 ? 'Playable solo for testing. It’s best with five or six.' : `${ids.length} players ready. Start when everyone is in.`) : 'Waiting for the host to start.';
         if (!autoTried && !joined && store.get('bd_name') && ids.length < MAXP) { autoTried = true; join(); }
+      },
+      tick() {
+        beat();
+        if (Date.now() - lastListDraw > 3000) { lastListDraw = Date.now(); this.update(); }
+        if (isHost() && Date.now() - lastSweep > 20000) { lastSweep = Date.now(); Object.keys(P).forEach(u => { if (u !== uid && !isLive(u) && (!P[u].s || Date.now() - P[u].s > 90000)) W(() => db.doc(`games/${S.gid}/players/${u}`).delete(), true); }); }
       }
     };
   }
@@ -7245,6 +7291,9 @@ function makePongView(cv, rk, seed) {
     };
   }
 
+  window.addEventListener('pagehide', () => { if (db && S && S.phase === 'lobby' && P[uid] && leftGid !== S.gid) { try { db.doc(`games/${S.gid}/players/${uid}`).delete(); } catch (e) { /* closing anyway */ } } });
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) beat(true); });
+
   // ---------- boot ----------
   refresh();
   try {
@@ -7252,10 +7301,14 @@ function makePongView(cv, rk, seed) {
     if (window.FIREBASE_CONFIG && window.firebase) {
       const fb = window.firebase;
       if (!fb.apps.length) fb.initializeApp(window.FIREBASE_CONFIG);
-      const cred = await fb.auth().signInAnonymously();
-      uid = cred.user.uid;
       db = fb.firestore();
       try { db.settings({ experimentalAutoDetectLongPolling: true, merge: true }); } catch (e) { /* settings already applied */ }
+      const au = fb.auth();
+      // reuse the sign-in this browser already has (same player id every visit); only sign in anew when there is none
+      let cu = au.currentUser;
+      if (!cu && au.onAuthStateChanged) cu = await new Promise(res => { let done = false; const un = au.onAuthStateChanged(u => { if (done) return; done = true; try { un(); } catch (e) { /* ok */ } res(u); }); setTimeout(() => { if (!done) { done = true; res(null); } }, 2500); });
+      if (!cu) cu = (await au.signInAnonymously()).user;
+      uid = cu.uid;
     } else if (cl && cl.use) { db = await cl.use('db'); user = await cl.use('user'); }
   } catch (e) { console.warn(e); }
   if (user) { try { meInfo = await user.me(); uid = meInfo.id || (await user.id()); } catch (e) { console.warn(e); } }
