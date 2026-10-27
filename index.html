@@ -251,6 +251,47 @@ button.chip { cursor: pointer; min-height: 30px; }
 .trk.h .fill { top: 0; bottom: auto; height: 100%; }
 .hud-r{flex-wrap:wrap;justify-content:flex-end;gap:6px}.hud{align-items:flex-start}
 .shoot{width:100%;margin:2px 0 4px}
+/* tier strip on the reveal: your tier lights up */
+.tiers.rv{display:grid;grid-template-columns:repeat(6,1fr);gap:4px;align-items:center;padding:12px 8px 8px}
+.tiers.rv span{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0;padding:6px 2px;border-radius:12px;font-size:9px;line-height:1.15;white-space:nowrap;position:relative;overflow:hidden;transition:transform .5s cubic-bezier(.3,1.6,.5,1),opacity .4s,box-shadow .4s}
+.tiers.rv span i{font-style:normal;font-weight:800}
+.tiers.rv span b{font-family:var(--mono);font-size:13px}
+.tiers.rv .dim{opacity:.38;transform:scale(.94)}
+.tiers.rv .hit{transform:scale(1.22);z-index:2;opacity:1;border-width:3px}
+.tiers.rv .t10{background:#D9CBB5}.tiers.rv .t10.hit{background:#B59B7B;color:#3B2A1A;box-shadow:0 4px 0 #6E5338}
+.tiers.rv .t25{background:#EEDFC2}.tiers.rv .t25.hit{background:#D8BE92;color:#4A3720;box-shadow:0 4px 0 #8A6D43}
+.tiers.rv .t45{background:#D4F0E3}.tiers.rv .t45.hit{background:#6FD3A6;color:#0E3B27;box-shadow:0 0 14px 2px rgba(111,211,166,.8),0 4px 0 var(--ink)}
+.tiers.rv .t65{background:#D3E6FB}.tiers.rv .t65.hit{background:#5AA7F2;color:#fff;box-shadow:0 0 16px 3px rgba(90,167,242,.85),0 4px 0 var(--ink)}
+.tiers.rv .t85{background:#FFEFB8}.tiers.rv .t85.hit{background:linear-gradient(110deg,#FFC21A 30%,#FFF3A8 48%,#FFC21A 66%);background-size:250% 100%;animation:gl 1.6s linear infinite;color:#5A3A00;box-shadow:0 0 20px 5px rgba(255,200,40,.9),0 4px 0 var(--ink)}
+.tiers.rv .t100{background:#E3F2FB}.tiers.rv .t100.hit{background:linear-gradient(120deg,#B9ECFF,#F4FBFF 30%,#C9B6FF 55%,#9FF0E6 80%,#B9ECFF);background-size:300% 100%;animation:gl 2.4s linear infinite;color:#12385A;box-shadow:0 0 24px 7px rgba(150,225,255,.95),0 4px 0 var(--ink)}
+.tiers.rv .t100.hit::before,.tiers.rv .t100.hit::after,.tiers.rv .t85.hit::after{content:'';position:absolute;width:11px;height:11px;background:#fff;clip-path:polygon(50% 0,62% 38%,100% 50%,62% 62%,50% 100%,38% 62%,0 50%,38% 38%);filter:drop-shadow(0 0 3px #7FD8FF);animation:tw 1.3s ease-in-out infinite}
+.tiers.rv .t100.hit::before{top:2px;left:5px}.tiers.rv .t100.hit::after{bottom:3px;right:5px;animation-delay:.6s;width:8px;height:8px}
+.tiers.rv .t85.hit::after{top:2px;right:4px;background:#FFFBE0;filter:drop-shadow(0 0 3px #FFE27A);width:9px;height:9px}
+@keyframes gl{to{background-position:-250% 0}}
+@keyframes tw{0%,100%{opacity:.15;transform:scale(.5) rotate(0)}50%{opacity:1;transform:scale(1.2) rotate(40deg)}}
+@media (prefers-reduced-motion:reduce){.tiers.rv .hit,.tiers.rv .hit::before,.tiers.rv .hit::after{animation:none}}
+/* luxury pass: the rarer the tier, the richer the finish */
+.tiers.rv span{border-width:2px}
+.tiers.rv .t10,.tiers.rv .t25{box-shadow:inset 0 1px 0 rgba(255,255,255,.5)}
+.tiers.rv .t45.hit,.tiers.rv .t65.hit{box-shadow:inset 0 1px 0 rgba(255,255,255,.55),inset 0 -3px 6px rgba(0,0,0,.18),0 0 16px 3px rgba(111,211,166,.7),0 4px 0 var(--ink)}
+.tiers.rv .t65.hit{background:linear-gradient(160deg,#8CC8FF,#3F8EE6 60%,#2F73C4);box-shadow:inset 0 1px 0 rgba(255,255,255,.6),inset 0 -3px 6px rgba(0,0,40,.25),0 0 18px 3px rgba(90,167,242,.8),0 4px 0 var(--ink)}
+/* gold: brushed metal, bevel, engraved type, slow sheen */
+.tiers.rv .t85{background:linear-gradient(160deg,#FFF1BF,#F2D27A 55%,#E3B94A);border-color:#B8892B}
+.tiers.rv .t85.hit{border-color:#7A5410;background:linear-gradient(115deg,#9A6A12 0%,#E8B83A 18%,#FFF2A6 34%,#F5C842 50%,#B98516 66%,#F7D86A 82%,#A9760F 100%);background-size:260% 100%;animation:gl 3.2s linear infinite;color:#3B2400;text-shadow:0 1px 0 rgba(255,255,255,.65),0 -1px 0 rgba(90,50,0,.35);box-shadow:inset 0 2px 0 rgba(255,255,255,.75),inset 0 -4px 7px rgba(110,60,0,.45),inset 0 0 0 2px rgba(255,236,150,.55),0 0 22px 6px rgba(255,196,40,.75),0 5px 0 #5E3E08}
+.tiers.rv .t85.hit i,.tiers.rv .t100.hit i{letter-spacing:.06em;text-transform:uppercase;font-size:9px}
+.tiers.rv .t85.hit::before{content:'';position:absolute;inset:0;background:linear-gradient(105deg,transparent 35%,rgba(255,255,255,.75) 50%,transparent 65%);transform:translateX(-120%);animation:sw 2.6s ease-in-out infinite}
+/* diamond: cut facets, prismatic rim, cold fire */
+.tiers.rv .t100{background:linear-gradient(160deg,#F4FBFF,#CFE9F7);border-color:#9CC3DA}
+.tiers.rv .t100.hit{border-color:#EAF9FF;color:#06223D;text-shadow:0 1px 0 rgba(255,255,255,.8);background:conic-gradient(from 20deg at 50% 50%,#CFF3FF,#6FD0FF,#F4FCFF,#B9A2FF,#6EEAD9,#F4FCFF,#7CC4FF,#CFF3FF);background-size:100% 100%;animation:spin 6s linear infinite;box-shadow:inset 0 0 0 2px rgba(255,255,255,.9),inset 0 -4px 8px rgba(70,140,200,.35),0 0 0 2px #6FB6E8,0 0 26px 8px rgba(140,225,255,.9),0 0 46px 12px rgba(190,160,255,.45),0 5px 0 #2D6A98}
+.tiers.rv .t100.hit b,.tiers.rv .t100.hit i{position:relative;z-index:1}
+.tiers.rv .t100.hit::before{content:'';position:absolute;inset:0;clip-path:none;width:auto;height:auto;background:linear-gradient(135deg,rgba(255,255,255,.9) 0 18%,transparent 18% 48%,rgba(255,255,255,.55) 48% 56%,transparent 56%);filter:none;animation:none}
+.tiers.rv .t100.hit::after{top:3px;right:5px;bottom:auto;left:auto}
+@keyframes sw{0%,35%{transform:translateX(-120%)}75%,100%{transform:translateX(120%)}}
+@keyframes spin{to{filter:hue-rotate(360deg)}}
+.badge.b65{background:#5AA7F2;color:#fff}
+.badge.b85{background:linear-gradient(115deg,#B98516,#FFE27A 40%,#E0A82A 70%,#FFE27A);color:#3B2400;border-color:#7A5410;text-shadow:0 1px 0 rgba(255,255,255,.6)}
+.badge.b100{background:linear-gradient(120deg,#CFF3FF,#fff 40%,#D8C9FF 70%,#A8F5EA);color:#0B2E4E;border-color:#6FB6E8;box-shadow:0 0 10px 2px rgba(140,225,255,.8)}
+.badge.b10{background:#D8C6AA;color:#4A3720}.badge.b25{background:#EAD7B5;color:#4A3720}.badge.b45{background:#9FE3C4;color:#0E3B27}
 
 </style>
 </head>
@@ -1309,7 +1350,7 @@ const G_ACC = 23, FRIC = 1.8, HOLE_R = 0.22, DT = 1 / 240, SAMPLE = 0.05;
 // the cup keeps a ball only if it is slow enough for how far off-center it crosses: fastest at dead center, zero speed allowed at the rim
 const CAPTURE_V = 6.5;
 const POLE_R = 0.09, POLE_E = 0.45; // a ball too fast to drop that hits the flagstick bounces off it
-const SLOPE_K = 1.5, GREEN_W = 6.3, GREEN_NEAR = 3, GREEN_FAR = 4;
+const SLOPE_K = 1.5, GREEN_W = 6.3, GREEN_NEAR = 3, GREEN_FAR = 8;
 function makeGreen(seed) {
   const r = mulberry32(seed);
   const D = 6.5 + r() * 19.5;
@@ -1386,6 +1427,9 @@ function makeView(cv, g, seed) {
   const vmin = -g.near, vmax = g.D + GREEN_FAR, b = Math.atan2(g.hx, g.hy);
   const kind = Math.floor(mulberry32(seed ^ 0x5bd1e995)() * 3);
   let w = 0, h = 0, cam = null, scene = null, banner = null, celeb = 0;
+  const FR = 5.2, GROUND = [[91, 154, 76], [47, 110, 73], [232, 191, 128]][kind]; // how wide the fringe is, and the color it melts into
+  const edgeD = (u, v) => Math.min(W - Math.abs(u), vmax - v);
+  const sm = t => { t = clamp(t, 0, 1); return t * t * t * (t * (6 * t - 15) + 10); };
   const mix = (a, c, t) => a.map((v, i) => Math.round(v + (c[i] - v) * t));
 
   // terrain: the same height function the physics slopes come from
@@ -1542,26 +1586,22 @@ function makeView(cv, g, seed) {
         if (v0 >= vmax - 0.001) continue;
         for (let i = 0; i < NC; i++) {
           const u0 = -W + STEP * i, u1 = u0 + STEP, sh = shade[r * NC + i], base = ((r >> 1) % 2 ? [108, 194, 122] : [98, 184, 112]), f = 0.7 + 0.6 * sh;
-          const col = `rgb(${Math.min(255, base[0] * f) | 0},${Math.min(255, base[1] * f) | 0},${Math.min(255, base[2] * f) | 0})`;
-          poly([P(u0, v0, Z(u0, v0)), P(u1, v0, Z(u1, v0)), P(u1, v1, Z(u1, v1)), P(u0, v1, Z(u0, v1))], col, col, 1);
+          const ed = edgeD((u0 + u1) / 2, (v0 + v1) / 2) / FR, gcol = [base[0] * f, base[1] * f, base[2] * f], fr = mix(gcol, [gcol[0] * 0.9 + 12, gcol[1] * 0.93, gcol[2] * 0.8], 0.5), gc = ed > 0.55 ? mix(fr, gcol, sm((ed - 0.55) / 0.45)) : mix(GROUND, fr, sm(ed / 0.55));
+          const col = `rgb(${Math.min(255, gc[0]) | 0},${Math.min(255, gc[1]) | 0},${Math.min(255, gc[2]) | 0})`;
+          const al0 = sm(ed / 0.22), cc = al0 >= 0.995 ? col : `rgba(${Math.min(255, gc[0]) | 0},${Math.min(255, gc[1]) | 0},${Math.min(255, gc[2]) | 0},${al0.toFixed(3)})`;
+          poly([P(u0, v0, Z(u0, v0)), P(u1, v0, Z(u1, v0)), P(u1, v1, Z(u1, v1)), P(u0, v1, Z(u0, v1))], cc, al0 >= 0.995 ? col : null, 1);
         }
       }
       for (const c of byRow[j]) {
         const cp = P(c.u, c.v, Z(c.u, c.v) + ZL);
         if (c.m < 0.002) { ctx.fillStyle = 'rgba(255,255,255,0.6)'; ctx.beginPath(); ctx.arc(cp.x, cp.y, Math.max(1.5, 0.07 * cp.k), 0, 7); ctx.fill(); continue; }
         const t = c.t, len = SP * (0.3 + 0.2 * t), e = (SP / 2) / Math.max(Math.abs(c.du), Math.abs(c.dv)), range = e - len / 2 - 0.05;
-        const ph = (T * (0.25 + 1.5 * t) + c.off) % 1, s = (ph * 2 - 1) * range, al = Math.pow(Math.sin(Math.PI * ph), 0.55) * (0.8 + 0.2 * t);
+        const ph = (T * (0.25 + 1.5 * t) + c.off) % 1, s = (ph * 2 - 1) * range, al = Math.pow(Math.sin(Math.PI * ph), 0.55) * (0.8 + 0.2 * t) * sm((edgeD(c.u, c.v) - 0.4) / 3.2);
         const col = mix([246, 255, 244], [14, 44, 28], Math.pow(t, 0.8));
         const au = c.u + c.du * (s - len / 2), av = c.v + c.dv * (s - len / 2), bu = c.u + c.du * (s + len / 2), bv = c.v + c.dv * (s + len / 2);
         arrow(P(au, av, Z(au, av) + ZL), P(bu, bv, Z(bu, bv) + ZL), `rgba(${col[0]},${col[1]},${col[2]},${al.toFixed(2)})`, Math.max(1.4, (0.06 + 0.07 * t) * cp.k), Math.max(4, (0.24 + 0.1 * t) * cp.k));
       }
     }
-    // edge of the green
-    const edge = [];
-    for (let v = vmin; v <= vmax; v += STEP) edge.push(P(-W, v, Z(-W, v)));
-    for (let u = -W; u <= W; u += STEP) edge.push(P(u, vmax, Z(u, vmax)));
-    for (let v = vmax; v >= vmin; v -= STEP) edge.push(P(W, v, Z(W, v)));
-    ctx.strokeStyle = INK; ctx.lineWidth = 3; ctx.lineJoin = 'round'; ctx.beginPath(); edge.forEach((p, i) => i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y)); ctx.stroke();
     // hole and fluttering flag
     const hzv = Z(0, g.D), hc = P(0, g.D, hzv), ring = [], shk = o.shake || 0;
     for (let a = 0; a < 24; a++) ring.push(P(Math.cos(a / 24 * 6.2832) * 0.26, g.D + Math.sin(a / 24 * 6.2832) * 0.26, hzv));
@@ -2171,13 +2211,16 @@ function makeView(cv, g, seed) {
         } else {
           const k = KRILL[pl.q];
           head.replaceChildren(h('span', { class: 'label' }, k.p), h('h2', { class: 'q' }, 'How deep did you go?'));
+          const mine = rd.sc[uid], hitTp = mine && (mine.st === 'ok' || mine.st === 'vote') ? mine.tp : 0;
+          const strip = h('div', { class: 'tiers rv' }, TIERS.map(t => h('span', { class: 't' + t[0] + (hitTp ? (t[0] === hitTp ? ' hit' : ' dim') : '') }, h('i', {}, t[1]), h('b', {}, t[0]))));
           const deep = Object.keys(k.t).map(Number).sort((a, b) => b - a).slice(0, 2).flatMap(tp => k.t[tp].split(',').map(x => x.split('|')[0].trim()).filter(Boolean));
           const rng = mulberry32(pl.s), ex = shuffle(deep, rng).slice(0, 4);
           box.replaceChildren(
+            strip,
             h('div', { class: 'list' }, order.map(u => {
               const s = rd.sc[u] || { q: 0, st: 'none' };
               let badge = null, sub = 'Total ' + (tot[u] ? tot[u].t : 0), main;
-              if (s.st === 'ok') { badge = h('span', { class: 'badge' }, tierName(s.tp) + ' ' + s.tp); main = '“' + s.a + '”' + (s.uq ? ' · only you, +10' : ''); }
+              if (s.st === 'ok') { badge = h('span', { class: 'badge b' + s.tp }, tierName(s.tp) + ' ' + s.tp); main = '“' + s.a + '”' + (s.uq ? ' · only you, +10' : ''); }
               else if (s.st === 'vote') { badge = h('span', { class: 'badge' }, 'Group vote 25'); main = '“' + s.a + '”' + (s.uq ? ' · only you, +10' : ''); }
               else if (s.st === 'no') { main = '“' + s.a + '” · not accepted'; }
               else { main = s.a ? '“' + s.a + '”' : 'No answer'; }
