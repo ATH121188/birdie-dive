@@ -3,34 +3,32 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="color-scheme" content="dark">
+<meta name="color-scheme" content="light">
 <title>Birdie Dive</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;700&family=Figtree:wght@400;600;700;800&family=DM+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;800&family=Nunito:wght@400;600;700;800&family=DM+Mono:wght@400;500&display=swap">
 <style>
-html{color-scheme:dark;background:#0A1612}
+html{color-scheme:light;background:#EAF6E4}
 body{margin:0}
-/* Layout: one phone-width column. A thin HUD on top, one full-height "stage" per phase beneath it.
-   Depth-gauge motif: tier badges and score bars read as ocean depth, the green is the one bright surface. */
 :root {
-  --bg: #0A1612;
-  --bg2: #10231C;
-  --panel: #142B22;
-  --panel2: #1B382C;
-  --line: #28493C;
-  --fg: #EAF2EC;
-  --muted: #8EA99C;
-  --gold: #F2D492;
-  --ink: #0A1612;
-  --good: #6EE7A1;
-  --bad: #FF6B6B;
+  --bg: #EAF6E4;
+  --bg2: #DDEFD5;
+  --panel: #FFFFFF;
+  --panel2: #FFF3B8;
+  --line: #1F3A2B;
+  --fg: #1F3A2B;
+  --muted: #4A6657;
+  --gold: #FFD23F;
+  --ink: #1F3A2B;
+  --good: #1A7048;
+  --bad: #C23A33;
   --turf: #1F6B43;
   --turf2: #247750;
-  --display: 'Unbounded', system-ui, sans-serif;
-  --body: 'Figtree', system-ui, -apple-system, sans-serif;
+  --display: 'Baloo 2', system-ui, sans-serif;
+  --body: 'Nunito', system-ui, -apple-system, sans-serif;
   --mono: 'DM Mono', ui-monospace, Menlo, monospace;
-  color-scheme: dark;
+  color-scheme: light;
 }
 * { box-sizing: border-box; }
 body {
@@ -178,6 +176,71 @@ p { margin: 0; }
 /* toast */
 #toast { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(18px + env(safe-area-inset-bottom, 0px)); background: var(--gold); color: var(--ink); font-weight: 700; padding: 10px 16px; border-radius: 12px; max-width: min(92vw, 420px); text-align: center; z-index: 20; }
 @media (prefers-reduced-motion: reduce) { .timer i { transition: none; } .btn:active { transform: none; } }
+
+
+/* ===== Sunny Clubhouse skin: light mint, chunky ink outlines, buttons that press down ===== */
+h1, h2, h3 { font-weight: 800; letter-spacing: 0; }
+.brand { font-size: 22px; font-weight: 800; line-height: 1; }
+.hud-r { color: var(--fg); }
+.chip { background: #fff; border: 2px solid var(--ink); font-weight: 800; padding: 4px 11px; color: var(--fg); }
+button.chip { cursor: pointer; min-height: 30px; }
+.chip.score { background: var(--gold); color: var(--ink); }
+.card { background: #fff; border: 2.5px solid var(--ink); border-radius: 20px; box-shadow: 0 5px 0 var(--ink); padding: 16px; margin-bottom: 5px; }
+.btn { background: #fff; border: 2.5px solid var(--ink); border-radius: 16px; box-shadow: 0 4px 0 var(--ink); font-weight: 800; transition: transform 0.06s, box-shadow 0.06s; }
+.btn:active { transform: translateY(3px); box-shadow: 0 1px 0 var(--ink); }
+.btn.gold { background: var(--gold); border-color: var(--ink); color: var(--ink); }
+.btn.ghost { background: transparent; box-shadow: none; }
+.btn.ghost:active { transform: none; }
+.btn[disabled] { box-shadow: 0 2px 0 var(--ink); }
+.inp { background: #fff; border: 2.5px solid var(--ink); font-weight: 700; }
+.inp:focus { border-color: var(--ink); box-shadow: 0 0 0 4px var(--gold); }
+:focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }
+.list .row { background: var(--bg2); border-radius: 14px; }
+.list .row.me { outline: none; background: var(--panel2); box-shadow: inset 0 0 0 2.5px var(--ink); }
+.badge { background: var(--gold); border: 2px solid var(--ink); color: var(--ink); }
+.dot { box-shadow: 0 0 0 2px var(--ink); }
+.sw { box-shadow: inset 0 0 0 2.5px var(--ink); }
+.sw.sel { border-color: var(--ink); box-shadow: inset 0 0 0 2px #fff; }
+.title small { color: var(--muted); font-weight: 700; }
+.timer { height: 16px; background: #fff; border: 2.5px solid var(--ink); }
+.timer i { background: #5BC8A8; border-right: 2.5px solid var(--ink); }
+.timer.low i { background: #FF8A5B; }
+.tline .sec { font-weight: 800; }
+.cat { border: 2px solid var(--ink); color: var(--ink); }
+.q { font-weight: 800; font-size: clamp(22px, 6.4vw, 28px); line-height: 1.15; background: #fff; border: 2.5px solid var(--ink); border-radius: 22px; box-shadow: 0 5px 0 var(--ink); padding: 18px 16px; margin-bottom: 5px; }
+.opts { gap: 14px; }
+.opt { background: #fff; border: 2.5px solid var(--ink); border-radius: 18px; box-shadow: 0 4px 0 var(--ink); font-weight: 800; transition: transform 0.06s, box-shadow 0.06s; }
+.opt:active:not([disabled]) { transform: translateY(3px); box-shadow: 0 1px 0 var(--ink); }
+.opt .k { width: 38px; height: 38px; border-radius: 50%; border: 2.5px solid var(--ink); color: var(--ink); font-family: var(--display); font-weight: 800; font-size: 18px; background: #FF8A5B; }
+.opt:nth-child(2) .k { background: #FFD23F; }
+.opt:nth-child(3) .k { background: #5BC8A8; }
+.opt:nth-child(4) .k { background: #6FA8FF; }
+.opt.picked { background: var(--panel2); transform: translateY(3px); box-shadow: 0 1px 0 var(--ink); border-color: var(--ink); }
+.opt.right { background: #C9F0DC; border-color: var(--ink); }
+.opt.wrong { background: #FFD9D4; border-color: var(--ink); }
+.opt.right.picked, .opt.wrong.picked { transform: translateY(3px); box-shadow: 0 1px 0 var(--ink); }
+.tiers span { border: 2px solid var(--ink); color: var(--fg); background: #fff; font-weight: 700; }
+.green { border: 2.5px solid var(--ink); border-radius: 20px; box-shadow: 0 5px 0 var(--ink); margin-bottom: 5px; }
+.trk { background: #fff; border: 2.5px solid var(--ink); }
+.trk .fill { background: var(--panel2); }
+.trk .thumb { background: var(--gold); border: 3px solid var(--ink); box-shadow: 0 3px 0 var(--ink); }
+.trk .mid { background: var(--ink); opacity: 0.35; }
+.nudge { padding: 0; }
+.readout b { font-weight: 500; }
+.banner { background: #fff; border: 2.5px solid var(--ink); box-shadow: 0 5px 0 var(--ink); border-radius: 20px; font-weight: 800; }
+.banner.sunk { background: #C9F0DC; border-color: var(--ink); color: var(--good); }
+.stand { background: var(--bg2); border-radius: 14px; }
+.stand.me { outline: none; background: var(--panel2); box-shadow: inset 0 0 0 2.5px var(--ink); }
+.bar { height: 10px; background: #fff; border: 2px solid var(--ink); }
+.pop-n { color: var(--gold); -webkit-text-stroke: 3px var(--ink); paint-order: stroke fill; text-shadow: 0 5px 0 var(--ink); }
+.pop.big .pop-n { color: #5BC8A8; -webkit-text-stroke: 3px var(--ink); text-shadow: 0 5px 0 var(--ink); }
+.pop.zero .pop-n { color: #fff; -webkit-text-stroke: 3px var(--ink); text-shadow: 0 4px 0 var(--ink); }
+.pop-l { background: var(--ink); color: #fff; border: 0; }
+#toast { border: 2.5px solid var(--ink); box-shadow: 0 4px 0 var(--ink); }
+@keyframes bump { 0% { transform: scale(1); } 25% { transform: scale(1.35); } 100% { transform: scale(1); } }
+.brand { white-space: nowrap; font-size: 19px; }
+.hud-r { gap: 6px; }
+.chip { padding: 3px 9px; }
 
 </style>
 </head>
@@ -1321,6 +1384,7 @@ function flatFeet(power) { const v = 0.12 * power; return v * v / (2 * FRIC); }
   // ---------- state ----------
   let db = null, user = null, uid = null, meInfo = null;
   let S = null, P = {}, R = {}, A = {}, V = {};
+  let leftGid = null, exitStep = false;
   let curGid = null, subs = [], hostSubs = [], hostGid = null;
   let lastSeq = -1, lastGid = null, firstLoad = true, phaseStart = Date.now();
   let cur = null, curKey = null;
@@ -1500,6 +1564,12 @@ function flatFeet(power) { const v = 0.12 * power; return v * v / (2 * FRIC); }
     const plan = makePlan(TRIVIA.length, KRILL.length);
     try { await setPhase({ phase: 'question', round: 0, plan, pl, dur: D(plan[0].f === 'T' ? TQ : KQ) }); } catch (e) { /* toast already shown */ }
   }
+  function exitGame() {
+    if (!S) return;
+    const gid = S.gid;
+    if (S.phase === 'lobby' && P[uid]) W(() => db.doc(`games/${gid}/players/${uid}`).delete());
+    leftGid = gid; refresh();
+  }
   async function takeOver() {
     const ns = Object.assign({}, S, { hostId: uid });
     if (await W(() => lobbyRef().set(ns))) { S = ns; armed = ''; adv = -1; onState(); }
@@ -1528,7 +1598,7 @@ function flatFeet(power) { const v = 0.12 * power; return v * v / (2 * FRIC); }
   // ---------- view plumbing ----------
   function viewKey() {
     if (!uid) return 'nouser';
-    if (!S) return 'intro';
+    if (!S || leftGid === S.gid) return 'intro';
     if (S.phase === 'lobby') return 'lobby:' + S.gid;
     if (!inGame()) return 'watch:' + S.gid + ':' + S.phase + ':' + S.round + ':' + S.seq;
     return S.phase + ':' + S.gid + ':' + S.round + ':' + S.seq;
@@ -1590,6 +1660,10 @@ function flatFeet(power) { const v = 0.12 * power; return v * v / (2 * FRIC); }
       right.append(h('span', { class: 'chip score' + (bump ? ' bump' : '') }, tv + ' pts'));
       if (isHost() && ['reveal', 'replay', 'vote'].includes(S.phase)) right.append(h('button', { class: 'chip', onclick: hostSkip }, 'Next ▸'));
     }
+    if (S && uid && leftGid !== S.gid) {
+      const eb = h('button', { class: 'chip', onclick: () => { if (!exitStep) { exitStep = true; eb.textContent = isHost() && S.phase !== 'lobby' && S.phase !== 'final' ? 'Host leaving? Tap to confirm' : 'Tap again to exit'; setTimeout(() => { exitStep = false; eb.textContent = '✕ Menu'; }, 3500); return; } exitStep = false; exitGame(); } }, '✕ Menu');
+      right.append(eb);
+    }
     $hud.replaceChildren(h('div', { class: 'brand' }, 'Birdie Dive'), right);
   }
   let takeStep = false;
@@ -1613,7 +1687,14 @@ function flatFeet(power) { const v = 0.12 * power; return v * v / (2 * FRIC); }
     return { root: h('div', { class: 'card' }, h('h2', {}, 'Sign in to play'), h('p', { class: 'muted' }, 'Open this page while signed in to claude.ai. The host also needs to invite you with edit access so your answers can be saved.')) };
   }
   function buildIntro() {
+    const rejoin = h('button', { class: 'btn gold big', onclick: () => { leftGid = null; refresh(); } }, 'Rejoin current game');
+    const fresh = h('button', { class: 'btn gold big', onclick: () => { if (S && S.phase !== 'lobby' && S.phase !== 'final' && !fresh.dataset.c) { fresh.dataset.c = 1; fresh.textContent = 'This ends the current game for everyone. Tap again'; return; } delete fresh.dataset.c; leftGid = null; newGame(); } }, 'Start a new game');
     return {
+      update() {
+        const has = !!(S && leftGid === S.gid);
+        rejoin.hidden = !has; fresh.className = 'btn big' + (has ? '' : ' gold');
+        if (!has || !fresh.dataset.c) fresh.textContent = 'Start a new game';
+      },
       root: h('div', { class: 'col', style: 'gap:18px' },
         h('h1', { class: 'title' }, 'Birdie Dive', h('small', {}, 'Trivia, rare answers, then one putt. Five or six friends, ten rounds, every phone at once.')),
         h('div', { class: 'card' },
@@ -1621,7 +1702,7 @@ function flatFeet(power) { const v = 0.12 * power; return v * v / (2 * FRIC); }
             h('span', {}, h('b', {}, 'Trivia rounds. '), 'Four choices. Faster correct answers score up to 100.'),
             h('span', {}, h('b', {}, 'Deep-answer rounds. '), 'Type something valid but unusual. Rarer answers go deeper and score up to 100.'),
             h('span', {}, h('b', {}, 'The putt. '), 'One shot at the same green for everyone, worth up to 100 more.')),
-          h('button', { class: 'btn gold big', onclick: newGame }, 'Start a new game')))
+          rejoin, fresh))
     };
   }
   function buildWatch() {
