@@ -250,6 +250,7 @@ button.chip { cursor: pointer; min-height: 30px; }
 .aimrow .trk.h { flex: 1; }
 .trk.h .fill { top: 0; bottom: auto; height: 100%; }
 .hud-r{flex-wrap:wrap;justify-content:flex-end;gap:6px}.hud{align-items:flex-start}
+.shoot{width:100%;margin:2px 0 4px}
 
 </style>
 </head>
@@ -1605,9 +1606,9 @@ function makeView(cv, g, seed) {
     // result splash beside the flag
     if (banner) {
       const age = (now - banner.t0) / 1000;
-      if (age > 2.5) banner = null;
+      if (!banner.stay && age > 2.5) banner = null;
       else {
-        const pop = age < 0.25 ? 0.6 + 0.5 * Math.sin(age / 0.25 * Math.PI / 2) : age < 0.4 ? 1.1 - 0.1 * (age - 0.25) / 0.15 : 1, a = age < 1.5 ? 1 : clamp(1 - (age - 1.5) / 1, 0, 1), rise = age > 1.5 ? (age - 1.5) * 14 : 0;
+        const pop = age < 0.25 ? 0.6 + 0.5 * Math.sin(age / 0.25 * Math.PI / 2) : age < 0.4 ? 1.1 - 0.1 * (age - 0.25) / 0.15 : 1, a = (banner.stay || age < 1.5) ? 1 : clamp(1 - (age - 1.5) / 1, 0, 1), rise = (!banner.stay && age > 1.5) ? (age - 1.5) * 14 : 0;
         const fs0 = banner.win ? 26 : 20, lh = fs0 * 1.08;
         const tw = Math.max(...banner.lines.map(q => { ctx.font = `800 ${fs0}px "Baloo 2", Nunito, sans-serif`; return ctx.measureText(q).width; }));
         const fp = P(1.4, g.D, hzv + 2.3), rightSide = fp.x + 8 + tw < w - 8, bx2 = rightSide ? fp.x + 8 : P(-0.4, g.D, hzv + 2.3).x - 8, by2 = Math.max(40, fp.y + 8) - rise;
@@ -1615,6 +1616,23 @@ function makeView(cv, g, seed) {
         banner.lines.forEach((q, i) => { const pts = /^[+]\d+$/.test(q); ctx.font = `800 ${pts ? fs0 * 1.25 : fs0}px "Baloo 2", Nunito, sans-serif`; ctx.lineWidth = 6; ctx.strokeStyle = INK; ctx.strokeText(q, 0, i * lh * 1.1); ctx.fillStyle = pts ? '#FFD23F' : '#FFFFFF'; ctx.fillText(q, 0, i * lh * 1.1); });
         ctx.restore();
       }
+    }
+    // per-player result tags that stay put, nudged apart so they do not overlap
+    if (o.tags && o.tags.length) {
+      const placed = [];
+      o.tags.forEach(tg => {
+        const [uu, vv] = toUV(tg.x, tg.y), pp = P(uu, vv, Z(uu, vv) + 0.3), age = (now - tg.t0) / 1000, pop = age < 0.25 ? 0.6 + 0.4 * (age / 0.25) : 1;
+        ctx.font = '800 12px Nunito, sans-serif';
+        const tw = ctx.measureText(tg.text).width + 26, th = 22;
+        let x = clamp(pp.x - tw / 2, 6, w - tw - 6), y = clamp(pp.y - 34, 6, h - th - 6);
+        for (let k = 0; k < 8 && placed.some(q => Math.abs(q.x - x) < tw / 2 + q.w / 2 && Math.abs(q.y - y) < th + 2); k++) y = clamp(y - (th + 3), 6, h - th - 6);
+        placed.push({ x, y, w: tw });
+        ctx.save(); ctx.translate(x + tw / 2, y + th / 2); ctx.scale(pop, pop); ctx.translate(-tw / 2, -th / 2);
+        ctx.fillStyle = '#FFFFFF'; ctx.strokeStyle = INK; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(11, 0); ctx.arcTo(tw, 0, tw, th, 11); ctx.arcTo(tw, th, 0, th, 11); ctx.arcTo(0, th, 0, 0, 11); ctx.arcTo(0, 0, tw, 0, 11); ctx.closePath(); ctx.fill(); ctx.stroke();
+        ctx.fillStyle = tg.col; ctx.beginPath(); ctx.arc(11, th / 2, 5, 0, 7); ctx.fill(); ctx.stroke();
+        ctx.fillStyle = INK; ctx.textAlign = 'left'; ctx.fillText(tg.text, 21, th / 2 + 4);
+        ctx.restore();
+      });
     }
     // power readout, pinned top-right so a thumb never covers it
     if (o.aimUI) {
@@ -1633,7 +1651,7 @@ function makeView(cv, g, seed) {
   return {
     kind, size, draw, touch, ground, toUV,
     ball: () => P(0, 0, 0.1),
-    splash(lines, win, now) { banner = { lines, win, t0: now }; if (win) celeb = now; },
+    splash(lines, win, now, stay) { banner = { lines, win, t0: now, stay: !!stay }; if (win) celeb = now; },
     resultLines(m) { // from a stored putt result
       const base = { sunk: 'SUNK!', lip: 'Lipped out.', inch: 'Inside a foot.', near: 'Within 4 ft.', miss: 'Missed.', fell: kind === 0 ? 'Over the cliff!' : 'Off the green.' }[m.out] || 'Missed.';
       return [].concat(m.pole ? ['Off the flagstick!'] : [], [base, '+' + (m.p || 0)]);
@@ -1730,6 +1748,7 @@ function makeView(cv, g, seed) {
     hostGid = curGid;
     const g = db.doc('games/' + curGid);
     hostSubs.push(g.collection('answers').onSnapshot(s => { A = {}; s.docs.forEach(d => { A[d.id] = d.data(); }); hostEarly(); }, dbErr));
+    hostSubs.push(g.collection('putts').onSnapshot(s => { PT = {}; s.docs.forEach(d => { PT[d.id] = d.data(); }); hostEarly(); }, dbErr));
     hostSubs.push(g.collection('votes').onSnapshot(s => { V = {}; s.docs.forEach(d => { V[d.id] = d.data(); }); hostEarly(); }, dbErr));
   }
   function onState() {
@@ -1763,10 +1782,16 @@ function makeView(cv, g, seed) {
       default: break;
     }
   }
+  let PT = {}, putEarlyArmed = '';
   function hostEarly() {
     if (!isHost() || !S || !S.pl) return;
     if (S.phase === 'question' && S.pl.every(u => A['r' + S.round + '_' + u])) schedule(advance, 500);
     if (S.phase === 'vote' && S.pl.every(u => V['r' + S.round + '_' + u])) schedule(advance, 500);
+    if (S.phase === 'putt' && S.pl.every(u => PT['r' + S.round + '_' + u] && PT['r' + S.round + '_' + u].shot)) {
+      const mt = Math.max(0, ...S.pl.map(u => +PT['r' + S.round + '_' + u].t || 0));
+      const wait = D(mt * 1000 + 2200);
+      if (putEarlyArmed !== S.gid + ':' + S.seq) { putEarlyArmed = S.gid + ':' + S.seq; schedule(advance, Math.min(wait, Math.max(0, S.dur - (Date.now() - S.t0)) + D(GRACE))); }
+    }
   }
   async function setPhase(patch) {
     const ns = Object.assign({}, S, patch, { seq: S.seq + 1, t0: Date.now() });
@@ -1883,9 +1908,9 @@ function makeView(cv, g, seed) {
     voteQ = voteQ.then(() => W(() => db.doc(`games/${gid}/votes/r${r}_${uid}`).set({ r, u: uid, v }), true));
   }
   let puttQ = Promise.resolve();
-  function savePutt(r, aim, power) {
+  function savePutt(r, aim, power, shot, t) {
     const gid = S.gid;
-    puttQ = puttQ.then(() => W(() => db.doc(`games/${gid}/putts/r${r}_${uid}`).set({ r, u: uid, aim, power }), true));
+    puttQ = puttQ.then(() => W(() => db.doc(`games/${gid}/putts/r${r}_${uid}`).set({ r, u: uid, aim, power, shot: !!shot, t: t || 0 }), true));
   }
 
   // ---------- view plumbing ----------
@@ -2193,16 +2218,16 @@ function makeView(cv, g, seed) {
   // ---------- putt ----------
   function buildPutt() {
     const r = S.round, seed = S.plan[r].s, g = makeGreen(seed);
-    let aim = 0, power = 50, locked = false, ok = false, saveT = null, raf = 0;
+    let aim = 0, power = 50, locked = false, ok = false, raf = 0, sim = null, st0 = 0, popped = false;
     const cv = h('canvas', { class: 'green', 'aria-label': 'Putting green seen from behind the ball, with moving slope arrows' });
     const view = makeView(cv, g, seed);
     const timer = makeTimer();
-    timer.label('Your ball launches at zero');
+    timer.label('Shoot when you are ready. Auto-shoots at zero');
     const aimOut = h('b', {}, ''), powOut = h('b', {}, '');
     const powS = slider({ min: 0, max: 100, step: 1, value: 50, label: 'Power', onInput: v => { power = v; changed(); } });
     const aimS = slider({ min: -25, max: 25, step: 0.5, value: 0, mid: true, label: 'Aim', onInput: v => { aim = v; changed(); } });
     const nud = d => () => { aimS.set(aim + d, true); };
-    // slingshot: press below the ball and pull back. The arrow points away from your finger, and a longer pull means more power.
+    // slingshot: press below the ball and pull back. The arrow points away from your finger, and a longer pull means more power. Letting go shoots.
     cv.style.touchAction = 'none';
     let pull = null, startPt = null, moved = 0, drag = false;
     const pullTo = e => {
@@ -2217,42 +2242,62 @@ function makeView(cv, g, seed) {
     cv.addEventListener('pointerdown', e => { if (locked) return; drag = true; try { cv.setPointerCapture(e.pointerId); } catch (x) { /* ignore */ } pullTo(e); e.preventDefault(); });
     cv.addEventListener('pointermove', e => { if (drag) pullTo(e); });
     cv.addEventListener('pointerup', () => {
-      const set = drag && pull && pull.px >= 22 && moved >= 10 && !locked;
+      const go = drag && pull && pull.px >= 22 && moved >= 10 && !locked;
       endDrag();
-      if (set) { status.textContent = 'Shot set. You can still adjust until the timer ends.'; status.hidden = false; clearTimeout(saveT); savePutt(r, aim, power); }
+      if (go) shoot();
     });
     cv.addEventListener('pointercancel', endDrag); cv.addEventListener('lostpointercapture', () => { if (drag) endDrag(); });
-    const status = h('div', { class: 'banner' }, 'Struck. Watch the replay.');
+    const status = h('div', { class: 'banner' }, '');
     status.hidden = true;
+    const shootBtn = h('button', { class: 'btn gold big shoot', onclick: () => shoot() }, 'SHOOT');
     function changed() {
       aim = aimS.get(); power = powS.get();
       aimOut.textContent = aim === 0 ? 'On the hole line' : Math.abs(aim).toFixed(1) + '° ' + (aim > 0 ? 'right' : 'left');
       powOut.textContent = '≈ ' + Math.round(flatFeet(power)) + ' ft on flat';
-      clearTimeout(saveT); saveT = setTimeout(() => { if (!locked) savePutt(r, aim, power); }, 800);
     }
+    function shoot() {
+      if (locked) return;
+      locked = true; endDrag(); aim = aimS.get(); power = powS.get();
+      powS.el.classList.add('off'); aimS.el.classList.add('off'); shootBtn.disabled = true; shootBtn.hidden = true;
+      sim = simulate(g, aim, power); st0 = performance.now();
+      status.textContent = 'Rolling…'; status.hidden = false;
+      savePutt(r, aim, power, true, sim.t);
+    }
+    const pos = (path, t) => { const f = t / SAMPLE, i = Math.min(path.length / 2 - 1, Math.floor(f)), j = Math.min(path.length / 2 - 1, i + 1), k = clamp(f - i, 0, 1); return [path[2 * i] + (path[2 * j] - path[2 * i]) * k, path[2 * i + 1] + (path[2 * j + 1] - path[2 * i + 1]) * k]; };
     function frame(now) {
       raf = requestAnimationFrame(frame);
-      view.draw(now, { aimUI: !locked, aim, power, pull: drag ? pull : null, balls: [{ x: 0, y: 0, col: '#FFFFFF' }] });
+      if (!sim) { view.draw(now, { aimUI: true, aim, power, pull: drag ? pull : null, balls: [{ x: 0, y: 0, col: '#FFFFFF' }] }); return; }
+      const t = (now - st0) / 1000, tt = Math.min(t, sim.t), [ex, ey] = pos(sim.path, tt);
+      let a = 1, s2 = 1, shake = 0;
+      if (sim.fell && t > sim.t) { const tau = t - sim.t; a = clamp(1 - tau / 0.3, 0, 1); s2 = 1 - 0.5 * Math.min(tau / 0.3, 1); }
+      if (sim.out === 'sunk' && t >= sim.t) a = 0;
+      if (sim.pole && t >= sim.poleT) shake = Math.max(0, 1 - (t - sim.poleT) / 1.2);
+      if (!popped && (sim.fell ? t >= sim.t + 0.3 : t >= sim.t)) {
+        popped = true; view.splash(view.resultLines(sim), sim.out === 'sunk', now, true);
+        status.textContent = 'Waiting for everyone else. All shots replay together.';
+      }
+      view.draw(now, { balls: [{ x: ex, y: ey, a, s: s2, col: '#FFFFFF' }], trails: [{ path: sim.path, tt, col: '#FFFFFF', a: 0.95, lw: 3.5 }], shake });
     }
-    function lock() { locked = true; endDrag(); powS.el.classList.add('off'); aimS.el.classList.add('off'); status.textContent = 'Struck. Watch the replay.'; status.hidden = false; clearTimeout(saveT); savePutt(r, aim, power); }
     function layout() { ok = view.size(); }
     return {
       root: h('div', { class: 'col' }, timer.el,
         h('div', { class: 'stage' }, cv),
         h('div', { class: 'aimrow' }, h('span', { class: 'rowlab' }, 'Aim'), h('button', { class: 'btn nudge', 'aria-label': 'Aim left', onclick: nud(-0.5) }, '◀'), aimS.el, h('button', { class: 'btn nudge', 'aria-label': 'Aim right', onclick: nud(0.5) }, '▶')),
         h('div', { class: 'aimrow' }, h('span', { class: 'rowlab' }, 'Power'), powS.el),
+        shootBtn,
         h('div', { class: 'readout' }, h('span', {}, 'Aim ', aimOut), h('span', {}, 'Power ', powOut)),
-        h('p', { class: 'sub' }, 'Pull back below the ball like a slingshot. Drag right and the arrow swings left, and a longer pull is more power. Let go to set the shot, or use the sliders. Arrows point downhill: faster and darker means steeper. Do nothing and your ball goes straight at the hole at medium power.'),
+        h('p', { class: 'sub' }, 'Pull back below the ball like a slingshot and let go to shoot, or set the sliders and tap SHOOT. Drag right and the arrow swings left; a longer pull is more power. Arrows point downhill: faster and darker means steeper. Shoot on your own time, watch your ball, then everyone\'s shots replay together.'),
         status),
       mounted() { layout(); changed(); raf = requestAnimationFrame(frame); },
       resize() { layout(); },
-      destroy() { cancelAnimationFrame(raf); clearTimeout(saveT); },
-      tick() { timer.tick(); if (!locked && left() <= 0) lock(); },
+      destroy() { cancelAnimationFrame(raf); },
+      tick() { timer.tick(); if (!locked && left() <= 0) shoot(); },
       update() { if (!ok) layout(); }
     };
   }
 
   // ---------- replay ----------
+  const tagWord = p => ({ sunk: 'Sunk', lip: 'Lip-out', inch: 'Inside 1 ft', near: 'Within 4 ft', miss: 'Miss', fell: 'Fell off' }[p.out] || 'Miss');
   function buildReplay() {
     const r = S.round, seed = S.plan[r].s, g = makeGreen(seed);
     const cv = h('canvas', { class: 'green', 'aria-label': 'Replay of every putt' });
@@ -2263,14 +2308,14 @@ function makeView(cv, g, seed) {
     function popPutt(m, now) {
       if (popped || !m) return;
       popped = true;
-      view.splash(view.resultLines(m), m.out === 'sunk', now == null ? performance.now() : now);
+      view.splash(view.resultLines(m), m.out === 'sunk', now == null ? performance.now() : now, true);
     }
     const pos = (path, t) => { const f = t / SAMPLE, i = Math.min(path.length / 2 - 1, Math.floor(f)), j = Math.min(path.length / 2 - 1, i + 1), k = clamp(f - i, 0, 1); return [path[2 * i] + (path[2 * j] - path[2 * i]) * k, path[2 * i + 1] + (path[2 * j + 1] - path[2 * i + 1]) * k]; };
     function frame(now) {
       raf = requestAnimationFrame(frame);
       if (!ok) return;
       const t = started ? (now - t0) / 1000 : 0, trails = [], balls = [];
-      let shake = 0;
+      let shake = 0; const tags = [];
       if (rd && started) {
         for (const u of S.pl.slice().sort((a, b) => (a === uid) - (b === uid))) {
           const p = rd.pt[u]; if (!p) continue;
@@ -2280,13 +2325,14 @@ function makeView(cv, g, seed) {
           if (p.fell && t > p.t) { const tau = t - p.t; a = clamp(1 - tau / 0.3, 0, 1); s = 1 - 0.5 * Math.min(tau / 0.3, 1); }
           if (p.out === 'sunk' && t >= p.t) a = 0;
           balls.push(u === uid ? { x: ex, y: ey, a, s, col: '#FFFFFF' } : { x: ex, y: ey, a: a * 0.9, s, col: pCol(u), r: 0.85 });
+          if (u !== uid && (p.fell ? t >= p.t + 0.3 : t >= p.t)) { const wt = p.fell ? p.t + 0.3 : p.t; tags.push({ x: p.path[p.path.length - 2], y: p.path[p.path.length - 1], col: pCol(u), t0: now - Math.max(0, t - wt) * 1000, text: pName(u) + ' · ' + tagWord(p) + ' +' + p.p }); }
           if (p.pole && t >= p.poleT) shake = Math.max(shake, Math.max(0, 1 - (t - p.poleT) / 1.2));
         }
         const mine = rd.pt[uid];
         if (mine && (mine.fell ? t >= mine.t + 0.3 : t >= mine.t)) popPutt(mine, now);
         if (!done && t >= maxT + 0.4) finish();
       } else balls.push({ x: 0, y: 0, col: '#FFFFFF' });
-      view.draw(now, { balls, trails, shake });
+      view.draw(now, { balls, trails, shake, tags });
     }
     function finish() {
       done = true; popPutt(rd.pt[uid]); showPanel();
