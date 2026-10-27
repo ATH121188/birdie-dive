@@ -305,7 +305,7 @@ button.chip { cursor: pointer; min-height: 30px; }
   <footer id="foot"></footer>
 </div>
 <div id="toast" hidden></div>
-<div id="ver">v1.2</div>
+<div id="ver">v1.3</div>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
@@ -5587,6 +5587,7 @@ function flatFeet(power) { const v = 0.12 * effPower(power); return v * v / (2 *
 // ---- Birdie Dive: tilted putting view. Draws the green as real terrain from behind the ball, with slope arrows that glide inside their own grid squares. ----
 // One camera shape for every green (height and distance scale with the green's length), so the perspective always looks the same.
 function makeView(cv, g, seed) {
+  let pv = null; // cached path preview
   const ctx = cv.getContext('2d');
   const INK = '#1F3A2B', W = GREEN_W, SP = 1.8, STEP = SP / 3, NC = Math.round(2 * W / STEP), ZL = 0.03;
   const REDUCE = !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
@@ -5932,6 +5933,25 @@ function makeView(cv, g, seed) {
       ctx.lineWidth = 2; ctx.lineCap = 'round'; ctx.beginPath(); ctx.moveTo(ic.x - 8, ic.y); ctx.lineTo(ic.x + 8, ic.y); ctx.moveTo(ic.x, ic.y - 8); ctx.lineTo(ic.x, ic.y + 8); ctx.stroke();
       ctx.fillStyle = INK; ctx.beginPath(); ctx.arc(ic.x, ic.y, 2.4, 0, 7); ctx.fill();
       if (!pull) { ctx.font = '800 11px Nunito, sans-serif'; ctx.textAlign = 'center'; ctx.fillText('PULL TO AIM', ic.x, Math.min(ic.y + 31, h - 6)); ctx.textAlign = 'left'; }
+    }
+    if (o.aimUI) { // path preview: the first third of the real rolling path (slopes included) for the current aim and power
+      const key = (o.aim || 0).toFixed(2) + '|' + Math.round(pw * 2);
+      if (!pv || pv.key !== key) { const sm = simulate(g, o.aim || 0, pw), pp = sm.path, cum = [0]; for (let q = 1; q < pp.length / 2; q++) cum.push(cum[q - 1] + Math.hypot(pp[2 * q] - pp[2 * q - 2], pp[2 * q + 1] - pp[2 * q - 1])); pv = { key, pp, cum, tot: cum[cum.length - 1] }; }
+      const lim = pv.tot / 3, pts = [];
+      for (let q = 0; q < pv.cum.length; q++) {
+        if (pv.cum[q] <= lim) pts.push([pv.pp[2 * q], pv.pp[2 * q + 1]]);
+        else { const f = (lim - pv.cum[q - 1]) / (pv.cum[q] - pv.cum[q - 1] || 1); pts.push([pv.pp[2 * q - 2] + (pv.pp[2 * q] - pv.pp[2 * q - 2]) * f, pv.pp[2 * q - 1] + (pv.pp[2 * q + 1] - pv.pp[2 * q - 1]) * f]); break; }
+      }
+      if (pts.length > 1) {
+        const sc = pts.map(([x, y]) => { const [uu, vv] = toUV(x, y); return P(uu, vv, Z(uu, vv) + ZL); });
+        ctx.save(); ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+        for (let q = 1; q < sc.length; q++) {
+          const f = q / sc.length; ctx.globalAlpha = 1 - 0.65 * f;
+          ctx.setLineDash([]); ctx.strokeStyle = 'rgba(31,58,43,0.5)'; ctx.lineWidth = 8; ctx.beginPath(); ctx.moveTo(sc[q - 1].x, sc[q - 1].y); ctx.lineTo(sc[q].x, sc[q].y); ctx.stroke();
+          ctx.setLineDash([2, 7]); ctx.strokeStyle = '#FFE36B'; ctx.lineWidth = 5.5; ctx.beginPath(); ctx.moveTo(sc[q - 1].x, sc[q - 1].y); ctx.lineTo(sc[q].x, sc[q].y); ctx.stroke();
+        }
+        ctx.restore();
+      }
     }
     // balls
     (o.balls || []).forEach(bl => ballAt(bl.x, bl.y, bl));
@@ -6353,7 +6373,7 @@ function makePongView(cv, rk, seed) {
   'use strict';
   const TS = window.__TS || 1;
   const D = ms => Math.max(40, Math.round(ms * TS));
-  const NR = 10, TQ = 15000, KQ = 25000, VT = 15000, RT = 8000, RK = 12000, PUTT_MS = 10000, GRACE = 2200, GATE_MAX = 9000;
+  const NR = 10, TQ = 15000, KQ = 25000, VT = 15000, RT = 8000, RK = 12000, PUTT_MS = 10000, PICK_MS = 9000, GRACE = 2200, GATE_MAX = 9000;
   const GATED = ['question', 'vote', 'putt']; // timed phases wait for every phone to confirm it has the screen before the clock starts
   const COLORS = ['#FF6B6B', '#FF9F43', '#FFD23F', '#B6F06A', '#2EE6D6', '#5BB8FF', '#A78BFA', '#FF7EC8'];
   const MAXP = 8;
@@ -6390,6 +6410,7 @@ function makePongView(cv, rk, seed) {
   let lastSeq = -1, lastGid = null, firstLoad = true, phaseStart = Date.now();
   let cur = null, curKey = null;
   const myAns = {}, myVotes = {};
+  let PK = {}; // the mini-game choice made by the question winner, per round
   let hostTimer = null, armed = '', adv = -1, writeQ = Promise.resolve(), takeArm = false;
 
   const isHost = () => !!(S && uid && S.hostId === uid);
@@ -6428,10 +6449,11 @@ function makePongView(cv, rk, seed) {
 
   function switchGame(gid) {
     subs.forEach(f => f()); subs = []; hostSubs.forEach(f => f()); hostSubs = []; hostGid = null;
-    curGid = gid; P = {}; R = {}; A = {}; V = {}; AK = {};
+    curGid = gid; P = {}; R = {}; A = {}; V = {}; AK = {}; PK = {};
     const g = db.doc('games/' + gid);
     subs.push(g.collection('players').onSnapshot(s => { P = {}; s.docs.forEach(d => { P[d.id] = d.data(); }); onData(); }, dbErr));
     subs.push(g.collection('rounds').onSnapshot(s => { R = {}; s.docs.forEach(d => { R[d.id] = d.data(); }); onData(); }, dbErr));
+    subs.push(g.collection('picks').onSnapshot(s => { PK = {}; s.docs.forEach(d => { PK[d.id] = d.data(); }); hostEarly(); onData(); }, dbErr));
     subs.push(g.collection('acks').onSnapshot(s => { AK = {}; s.docs.forEach(d => { AK[d.id] = d.data(); }); hostEarly(); onData(); }, dbErr));
   }
   function ensureHostSubs() {
@@ -6487,6 +6509,7 @@ function makePongView(cv, rk, seed) {
       case 'question': schedule(advance, lf + D(GRACE)); break;
       case 'vote': schedule(advance, lf + D(900)); break;
       case 'reveal': schedule(advance, lf); break;
+      case 'pick': schedule(advance, lf + D(600)); break;
       case 'putt': schedule(advance, lf + D(GRACE)); break;
       case 'replay': schedule(advance, lf); break;
       default: break;
@@ -6498,6 +6521,7 @@ function makePongView(cv, rk, seed) {
     if (S.go === 0) { if (S.pl.every(u => AK[S.seq + '_' + u])) { const id = 'g' + S.gid + S.seq; if (gateArmed !== id) { gateArmed = id; schedule(release, 350); } } return; }
     if (S.phase === 'question' && S.pl.every(u => A['r' + S.round + '_' + u])) schedule(advance, 500);
     if (S.phase === 'vote' && S.pl.every(u => V['r' + S.round + '_' + u])) schedule(advance, 500);
+    if (S.phase === 'pick' && PK['r' + S.round] && PK['r' + S.round].u === S.picker) { const id = 'pk' + S.gid + S.seq; if (gateArmed !== id) { gateArmed = id; schedule(advance, D(1800)); } } // let everyone see the choice
     if (S.phase === 'putt' && S.pl.every(u => PT['r' + S.round + '_' + u] && PT['r' + S.round + '_' + u].shot)) {
       const mt = Math.max(0, ...S.pl.map(u => +PT['r' + S.round + '_' + u].t || 0));
       const wait = D(mt * 1000 + 2200);
@@ -6562,7 +6586,23 @@ function makePongView(cv, rk, seed) {
         pend.forEach((p, i) => { try { db.doc('unmatched/' + gid + '_r' + r + '_' + i).set({ qi: pl.q, prompt: KRILL[pl.q].p, text: String(p.t || '').slice(0, 80), norm: p.k, accepted: !!p.ok, voters: ids.length - (p.u || []).length, ts: Date.now() }).catch(() => {}); } catch (e) {} });
         await setPhase({ phase: 'reveal', dur: D(RK) });
       } else if (S.phase === 'reveal') {
-        await setPhase({ phase: 'putt', dur: D(PUTT_MS) });
+        // the top scorer on this question picks the mini-game. A tie for the top score (or nobody scoring) leaves the mini-game random.
+        let picker = null;
+        if (S.plan[r].pk) {
+          const sc = ((await g.collection('rounds').doc('r' + r).get()).data() || {}).sc || {};
+          let bq = 0; const top = [];
+          for (const u of ids) { const q = (sc[u] && sc[u].q) || 0; if (q > bq) { bq = q; top.length = 0; top.push(u); } else if (q > 0 && q === bq) top.push(u); }
+          if (top.length === 1) picker = top[0];
+        }
+        if (picker) await setPhase({ phase: 'pick', picker, dur: D(PICK_MS) });
+        else await setPhase({ phase: 'putt', picker: null, dur: D(PUTT_MS) });
+      } else if (S.phase === 'pick') {
+        let plan = S.plan;
+        try {
+          const pk = (await g.collection('picks').doc('r' + r).get()).data();
+          if (pk && pk.u === S.picker && KITS[pk.mg]) { plan = S.plan.map((p, i) => i === r ? Object.assign({}, p, { mg: pk.mg }) : p); }
+        } catch (e) { /* keep the pre-assigned mini-game */ }
+        await setPhase({ phase: 'putt', plan, picker: null, dur: D(PUTT_MS) });
       } else if (S.phase === 'putt') {
         const hk = kitOf(r), gr = hk.world(S.plan[r].s), putts = await readDocs('putts', 'r' + r, ids);
         const pt = {}; let maxT = 0;
@@ -6607,7 +6647,7 @@ function makePongView(cv, rk, seed) {
     } catch (e) { console.warn('deck unavailable, dealing at random', e); }
     const plan = makePlan(TRIVIA.length, KRILL.length, Math.random, pick);
     const mode = store.get('bd_mg') || 'mixed';
-    plan.forEach(p => { p.mg = mode === 'putt' || mode === 'pong' ? mode : (Math.random() < 0.5 ? 'putt' : 'pong'); });
+    plan.forEach(p => { p.mg = mode === 'putt' || mode === 'pong' ? mode : (Math.random() < 0.5 ? 'putt' : 'pong'); p.pk = mode === 'mixed'; }); // in mixed mode the question winner picks
     try { await setPhase({ phase: 'question', round: 0, plan, pl, dur: D(plan[0].f === 'T' ? TQ : KQ) }); } catch (e) { /* toast already shown */ }
   }
   function exitGame() {
@@ -6660,6 +6700,7 @@ function makePongView(cv, rk, seed) {
       case 'question': return buildQuestion();
       case 'vote': return buildVote();
       case 'reveal': return buildReveal();
+      case 'pick': return buildPick();
       case 'putt': return buildPutt();
       case 'replay': return buildReplay();
       default: return buildFinal();
@@ -6705,7 +6746,7 @@ function makePongView(cv, rk, seed) {
       lastTot = tv;
       right.append(h('span', { class: 'chip' }, S.phase === 'final' ? 'Final' : `Round ${S.round + 1}/${NR}`));
       right.append(h('span', { class: 'chip score' + (bump ? ' bump' : '') }, tv + ' pts'));
-      if (isHost() && ['reveal', 'replay', 'vote'].includes(S.phase)) right.append(h('button', { class: 'chip', onclick: hostSkip }, 'Next ▸'));
+      if (isHost() && ['reveal', 'replay', 'vote', 'pick'].includes(S.phase)) right.append(h('button', { class: 'chip', onclick: hostSkip }, 'Next ▸'));
     }
     if (S && uid && leftGid !== S.gid) {
       const eb = h('button', { class: 'chip', onclick: () => { if (!exitStep) { exitStep = true; eb.textContent = isHost() && S.phase !== 'lobby' && S.phase !== 'final' ? 'Host leaving? Tap to confirm' : 'Tap again to exit'; setTimeout(() => { exitStep = false; eb.textContent = '✕ Menu'; }, 3500); return; } exitStep = false; exitGame(); } }, '✕ Menu');
@@ -6951,6 +6992,22 @@ function makePongView(cv, rk, seed) {
   }
 
   // ---------- handshake screen ----------
+  function buildPick() {
+    const r = S.round, picker = S.picker, mine = picker === uid, timer = makeTimer(); timer.label('Pick the next mini-game');
+    const kits = Object.keys(KITS).map(k => KITS[k]), msg = h('p', { class: 'sub' }, ''), row = h('div', { class: 'col', style: 'gap:10px' });
+    let sent = false;
+    const choice = () => PK['r' + r] && PK['r' + r].u === picker ? KITS[PK['r' + r].mg] : null;
+    function pick(k) {
+      if (sent || !mine) return; sent = true; draw();
+      W(() => gRef().collection('picks').doc('r' + r).set({ u: uid, mg: k.id, t: Date.now() })).then(ok => { if (!ok) { sent = false; draw(); } });
+    }
+    function draw() {
+      const c = choice();
+      row.replaceChildren(...kits.map(k => h('button', { class: 'btn ' + (c && c.id === k.id ? 'gold ' : '') + 'big', disabled: !mine || sent || !!c, onclick: () => pick(k) }, k.id === 'putt' ? 'Putting' : k.name)));
+      msg.textContent = c ? (mine ? 'Locked in: ' : pName(picker) + ' picked: ') + c.name + '!' : mine ? (sent ? 'Locking in…' : 'You had the top score on that question. You choose the mini-game.') : pName(picker) + ' had the top score and is choosing the mini-game…';
+    }
+    return { root: h('div', { class: 'col' }, timer.el, h('span', { class: 'cat' }, 'Top scorer picks'), h('h2', { class: 'q' }, mine ? 'Choose the mini-game' : pName(picker) + ' is choosing…'), msg, row), mounted() { draw(); }, update() { draw(); }, tick() { timer.tick(); } };
+  }
   function buildGate() {
     const pl = S.plan && S.plan[S.round], what = S.phase === 'putt' ? kitOf(S.round).name : S.phase === 'vote' ? 'Group vote' : (pl && pl.f === 'K' ? 'Deep answer' : 'Trivia');
     const list = h('div', { class: 'list' }), note = h('p', { class: 'sub' }, ''), t0 = Date.now();
