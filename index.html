@@ -292,6 +292,7 @@ button.chip { cursor: pointer; min-height: 30px; }
 .badge.b85{background:linear-gradient(115deg,#B98516,#FFE27A 40%,#E0A82A 70%,#FFE27A);color:#3B2400;border-color:#7A5410;text-shadow:0 1px 0 rgba(255,255,255,.6)}
 .badge.b100{background:linear-gradient(120deg,#CFF3FF,#fff 40%,#D8C9FF 70%,#A8F5EA);color:#0B2E4E;border-color:#6FB6E8;box-shadow:0 0 10px 2px rgba(140,225,255,.8)}
 .badge.b10{background:#D8C6AA;color:#4A3720}.badge.b25{background:#EAD7B5;color:#4A3720}.badge.b45{background:#9FE3C4;color:#0E3B27}
+#ver{position:fixed;right:8px;bottom:4px;font:600 10px/1 'DM Mono',monospace;color:rgba(31,58,43,.45);pointer-events:none;z-index:5}
 
 </style>
 </head>
@@ -302,6 +303,7 @@ button.chip { cursor: pointer; min-height: 30px; }
   <footer id="foot"></footer>
 </div>
 <div id="toast" hidden></div>
+<div id="ver">v1.1</div>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
@@ -1328,7 +1330,34 @@ function triviaPoints(ms, dur) {
 }
 
 // ---- game plan ----
-function makePlan(nT, nK, rnd) {
+// A shuffled deck: every question is dealt once before any comes back. The deck is saved with the group so it survives reloads and a change of host.
+function deckId(s) { let h = 5381; s = String(s); for (let i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) | 0; return (h >>> 0).toString(36); }
+// saved: {o: ids still in the deck, in order, a: every id the deck knew about, l: the last batch dealt} or null
+// ids: current ids by question index; cats: category per index (or null); returns {idx: indices dealt, deck: new saved state}
+function dealDeck(saved, ids, cats, n, rnd, maxCat) {
+  rnd = rnd || Math.random;
+  const byId = new Map(ids.map((id, i) => [id, i]));
+  const known = new Set(saved && Array.isArray(saved.a) ? saved.a : []);
+  let order = (saved && Array.isArray(saved.o) ? saved.o : []).filter(id => byId.has(id));
+  const last = new Set(saved && Array.isArray(saved.l) ? saved.l : []);
+  const fresh = shuffle(ids.filter(id => !known.has(id) && !order.includes(id)), rnd); // questions added since last time come up first
+  order = fresh.concat(order);
+  if (order.length < n) { // out of cards: leftovers go first, then a fresh shuffle with the batch you just saw kept away from the top
+    const have = new Set(order), rest = shuffle(ids.filter(id => !have.has(id)), rnd);
+    order = order.concat(rest.filter(id => !last.has(id)), rest.filter(id => last.has(id)));
+  }
+  const picked = [], cnt = {};
+  for (const id of order) {
+    if (picked.length >= n) break;
+    const cat = cats ? cats[byId.get(id)] : null;
+    if (cat != null && maxCat && (cnt[cat] || 0) >= maxCat) continue;
+    picked.push(id); if (cat != null) cnt[cat] = (cnt[cat] || 0) + 1;
+  }
+  for (const id of order) { if (picked.length >= n) break; if (!picked.includes(id)) picked.push(id); }
+  const gone = new Set(picked);
+  return { idx: picked.map(id => byId.get(id)), deck: { o: order.filter(id => !gone.has(id)), a: ids.slice(), l: picked } };
+}
+function makePlan(nT, nK, rnd, pick) {
   rnd = rnd || Math.random;
   let seq = null;
   for (let tries = 0; tries < 500 && !seq; tries++) {
@@ -1338,8 +1367,8 @@ function makePlan(nT, nK, rnd) {
     if (ok) seq = s;
   }
   seq = seq || ['T', 'K', 'T', 'K', 'T', 'K', 'T', 'K', 'T', 'K'];
-  const tq = shuffle(Array.from({ length: nT }, (_, i) => i), rnd).slice(0, 5);
-  const kq = shuffle(Array.from({ length: nK }, (_, i) => i), rnd).slice(0, 5);
+  const tq = pick && pick.t ? pick.t : shuffle(Array.from({ length: nT }, (_, i) => i), rnd).slice(0, 5);
+  const kq = pick && pick.k ? pick.k : shuffle(Array.from({ length: nK }, (_, i) => i), rnd).slice(0, 5);
   let ti = 0, ki = 0;
   return seq.map(f => ({ f, q: f === 'T' ? tq[ti++] : kq[ki++], s: Math.floor(rnd() * 2147483647) }));
 }
@@ -1426,6 +1455,67 @@ function simulate(g, aimDeg, power) {
   return { path, t: (path.length / 2 - 1) * SAMPLE, out, p, d: r2(dist), fell, pole, poleT: r2(poleT) };
 }
 function flatFeet(power) { const v = 0.12 * power; return v * v / (2 * FRIC); }
+
+// ---- extra accepted answers, merged into KRILL at load. Cross-checked against public datasets (dariusk/corpora etc.) and curated by hand. ----
+(function () {
+  const have = qi => { const s = new Set(); Object.values(KRILL[qi].t).forEach(str => str.split(',').forEach(raw => raw.split('|').forEach(p => { const k = norm(p); if (k) s.add(k); }))); return s; };
+  function add(qi, tier, list) {
+    const s = have(qi), keep = [];
+    list.split(',').map(x => x.trim()).filter(Boolean).forEach(x => {
+      const parts = x.split('|').map(p => norm(p)).filter(Boolean);
+      if (parts.some(p => s.has(p))) return;
+      parts.forEach(p => s.add(p)); keep.push(x);
+    });
+    if (!keep.length) return;
+    KRILL[qi].t[tier] = (KRILL[qi].t[tier] ? KRILL[qi].t[tier] + ',' : '') + keep.join(',');
+  }
+  function alias(qi, name, extra) {
+    const s = have(qi), want = extra.split('|').map(x => x.trim()).filter(x => x && !s.has(norm(x)));
+    if (!want.length) return;
+    for (const t in KRILL[qi].t) {
+      const arr = KRILL[qi].t[t].split(','); let done = false;
+      for (let i = 0; i < arr.length; i++) if (norm(arr[i].split('|')[0]) === norm(name)) { arr[i] = arr[i].trim() + '|' + want.join('|'); done = true; break; }
+      if (done) { KRILL[qi].t[t] = arr.join(','); return; }
+    }
+  }
+  // 0 country
+  add(0, 85, 'Palestine|State of Palestine|Palestinian territories'); add(0, 100, 'Western Sahara|Sahrawi Republic');
+  alias(0, 'Saint Vincent and the Grenadines', 'St Vincent|St Vincent and the Grenadines|Saint Vincent');
+  alias(0, 'Ivory Coast', 'Cote dIvoire|Cote d Ivoire'); alias(0, 'Czech Republic', 'Czechia'); alias(0, 'East Timor', 'Timor-Leste|Timor Leste'); alias(0, 'Eswatini', 'Swaziland'); alias(0, 'Myanmar', 'Burma'); alias(0, 'North Macedonia', 'Macedonia');
+  // 1 animal
+  add(1, 25, 'ape,hog,ram'); add(1, 45, 'canary,finch,mustang,parakeet,ewe,chinchilla,wildcat,rooster,hen,lamb,calf,foal,puppy,kitten,bull,ox,stallion,mare,buffalo,yak,hare,rodent'); add(1, 65, 'gopher,porpoise,mountain goat,silver fox,arctic fox,red fox,gray wolf,timber wolf,red panda,giant panda,mule,hinny,zebu,water buffalo,bighorn sheep,mountain lion,puma,gerbil,guinea pig,vole,lemming,muskrat,nutria,prairie dog,marmot,flying squirrel,sea otter,harbor seal,elephant seal,leopard seal,monk seal,fur seal,sea cow,wolf spider,tarantula,black widow,scorpion,centipede,millipede'); add(1, 85, 'dromedary,mynah,bactrian camel,przewalskis horse,tapir,coati,agouti,paca,hutia,degu,jerboa,gundi,naked mole rat,kinkajou,fossa,pangolin,aardwolf,zorilla,honey badger,quokka,bilby,cassowary,emu,rhea,kiwi,shoebill,secretary bird,hoatzin,lyrebird,bowerbird,oilbird,frogmouth,potoo,cuscus,tuatara,axolotl,hellbender,mudpuppy,gharial,caiman,monitor lizard,gila monster,thorny devil,frilled lizard,basilisk,flying fox,vampire bat,fruit bat'); add(1, 100, 'okapi,kudu,markhor,takin,saiga,pudu,mouse deer,chevrotain,tamandua,giant anteater,pichi,bumblebee bat,hummingbird hawk-moth,narwhal,vaquita,pygmy hippopotamus,pygmy marmoset,dwarf lemur,mouse lemur,indri,sifaka,aye aye,pink river dolphin,boto,irrawaddy dolphin');
+  // 2 elements, 28 pokemon, 11 greek
+  add(2, 85, 'Promethium'); add(28, 45, 'Machoke'); add(11, 85, 'Thalassa'); alias(2, 'Tungsten', 'Wolfram'); alias(2, 'Sodium', 'Natrium'); alias(2, 'Potassium', 'Kalium'); alias(2, 'Lead', 'Plumbum'); alias(2, 'Iron', 'Ferrum'); alias(2, 'Gold', 'Aurum'); alias(2, 'Silver', 'Argentum'); alias(2, 'Copper', 'Cuprum'); alias(2, 'Tin', 'Stannum'); alias(2, 'Mercury', 'Hydrargyrum');
+  // 3 dog breeds
+  add(3, 25, 'American Cocker Spaniel,English Cocker Spaniel,Standard Schnauzer,Irish Terrier,Wire Fox Terrier,Smooth Fox Terrier,Fox Terrier'); add(3, 45, 'Australian Kelpie|Kelpie,Beauceron,Catahoula Leopard Dog|Catahoula|Catahoula Cur,Boykin Spaniel,Dogo Argentino,Parson Russell Terrier|Jack Russell Terrier|Jack Russell,Patterdale Terrier,American Foxhound,English Foxhound,Miniature American Shepherd,White Shepherd|White Swiss Shepherd,Olde English Bulldogge,Toy Fox Terrier,Belgian Malinois,Belgian Tervuren,Belgian Sheepdog,Chinese Crested,Mexican Hairless|Xoloitzcuintli|Xolo,Pointer,Perro de Presa Canario|Presa Canario,Fila Brasileiro|Brazilian Mastiff,German Spitz,Spanish Mastiff'); add(3, 65, 'Bergamasco|Bergamasco Shepherd,Berger Picard|Picardy Shepherd,Bracco Italiano|Italian Pointer,Jagdterrier|German Hunt Terrier,Norwegian Buhund,Korean Jindo|Jindo,Dutch Shepherd,Canadian Eskimo Dog|Canadian Inuit Dog,Greenland Dog,Mountain Cur,Treeing Walker Coonhound,Plott Hound,Bluetick Coonhound,Redbone Coonhound,Black and Tan Coonhound,Treeing Tennessee Brindle,Stephens Cur,Blue Lacy|Lacy Dog,Carolina Dog,Appenzeller Sennenhund|Appenzeller,Entlebucher Mountain Dog|Entlebucher,Greater Swiss Mountain Dog,Kooikerhondje,Lagotto Romagnolo|Lagotto,Nederlandse Kooikerhondje,Barbet,Spinone Italiano|Spinone,Wirehaired Vizsla,Wirehaired Pointing Griffon|Griffon,German Longhaired Pointer,German Wirehaired Pointer,Drentsche Patrijshond,Small Munsterlander|Small Münsterländer,Large Munsterlander|Large Münsterländer,Sloughi,Azawakh,Pharaoh Hound,Ibizan Hound,Cirneco dellEtna|Cirneco,Portuguese Podengo|Podengo,Basenji,Rat Terrier,Lakeland Terrier,Cesky Terrier,Sealyham Terrier,Skye Terrier,Dandie Dinmont Terrier,Border Terrier,Manchester Terrier,Welsh Terrier,Norwich Terrier,Norfolk Terrier'); add(3, 85, 'Eurasier,Hamiltonstovare|Hamilton Hound,Jamthund|Swedish Elkhound,Pudelpointer,Stabyhoun,Taigan,Tornjak,Slovak Cuvac|Slovensky Cuvac,Sarplaninac|Yugoslavian Shepherd,Kishu|Kishu Ken,Thai Bangkaew,Tamaskan,Teddy Roosevelt Terrier,Huntaway|New Zealand Huntaway,Koolie,Berger Blanc Suisse|White Swiss Shepherd Dog,Peruvian Hairless|Peruvian Inca Orchid,Pyrenean Mastiff,Bully Kutta,Kangal|Kangal Shepherd,Akbash,Anatolian Shepherd,Armenian Gampr,Caucasian Shepherd|Caucasian Ovcharka,Central Asian Shepherd|Alabai,Moscow Watchdog,Black Russian Terrier,Russian Toy,Russkiy Toy,Tibetan Spaniel,Tibetan Terrier,Lowchen,Bolognese,Havanese,Coton de Tulear,Volpino Italiano,Japanese Chin,Chinese Chongqing Dog,Shiba Inu,Akita Inu,Kai Ken,Hokkaido,Shikoku,Tosa|Tosa Inu,Pungsan,Formosan Mountain Dog,Canaan Dog,Rajapalayam,Chippiparai,Kanni,Mudhol Hound|Caravan Hound,Rampur Greyhound,Indian Pariah Dog,Kumaon Mastiff,Himalayan Sheepdog,Bakharwal Dog,Sinhala Hound,Phu Quoc Ridgeback|Phu Quoc Dog,Kintamani,Hawaiian Poi Dog,Mucuchies,Cimarron Uruguayo,Cordoba Fighting Dog,Chilean Fox Terrier|Ratonero Chileno,Brazilian Terrier|Fox Paulistinha,Rastreador Brasileiro,Cao de Castro Laboreiro,Cao da Serra de Aires,Cao Fila de Sao Miguel,Portuguese Pointer,Burgos Pointer,Galgo Espanol|Spanish Greyhound,Podenco Canario,Sabueso Espanol,Pachon Navarro,Ratonero Bodeguero Andaluz,Catalan Sheepdog|Gos dAtura,Basque Shepherd,Alano Espanol'); add(3, 100, 'Broholmer,Dunker|Norwegian Hound,Schillerstovare|Swedish Hound,Finnish Hound,Estonian Hound,Lithuanian Hound,Polish Hound,Polish Greyhound,Polish Hunting Dog,Polish Tatra Sheepdog|Tatra Shepherd,Serbian Hound,Posavac Hound,Istrian Hound,Montenegrin Mountain Hound,Transylvanian Hound,Bucovina Shepherd,Carpathian Shepherd,Romanian Raven Shepherd,Mioritic Shepherd,Karst Shepherd,Croatian Sheepdog,Old Croatian Sighthound,Hygenhund,Cretan Hound|Kritikos Lagonikos,Greek Harehound|Hellenic Hound,Small Greek Domestic Dog,Bohemian Shepherd|Chodsky Pes,Cesky Fousek,Slovakian Rough-haired Pointer,Prazsky Krysarik|Prague Ratter,Danish Swedish Farmdog,Old Danish Pointer,Dutch Smoushond,Berner Laufhund,Schweizer Laufhund,Bruno Jura Hound,Griffon Nivernais,Grand Bleu de Gascogne,Petit Bleu de Gascogne,Griffon Fauve de Bretagne,Basset Fauve de Bretagne,Ariegeois,Porcelaine,Braque du Bourbonnais,Braque Saint-Germain,Braque dAuvergne,Braque Francais,Ariege Pointer,Aidi|Atlas Mountain Dog,Armant,Sapsali,Pungsan Dog,Taiwan Dog,Cursinu,Kurī,Tahltan Bear Dog,Hare Indian Dog,Sakhalin Husky,Seppala Siberian Sleddog,Northern Inuit Dog,Silken Windhound,Longhaired Whippet,Cretan Hound,Blue Paul Terrier,Paisley Terrier,English White Terrier,Old English Terrier,Miniature Fox Terrier,Sporting Lucas Terrier');
+  // 4 instruments
+  add(4, 45, 'pipe organ,kick drum,fife'); add(4, 65, 'calliope,vuvuzela,washtub bass,musical saw,theremin,hurdy-gurdy,glass harmonica,jaw harp|jews harp,ocarina,kazoo,slide whistle,tin whistle|penny whistle,pan flute|panpipes,bagpipes,didgeridoo,sitar,tabla,shamisen,koto,erhu,pipa,guzheng,oud,balalaika,bouzouki,mandolin,banjo,ukulele,lute,zither,dulcimer,hammered dulcimer,accordion,concertina,melodica,harmonica'); add(4, 85, 'serpent,ophicleide,sackbut,shawm,crumhorn,rackett,theorbo,viola da gamba,nyckelharpa,kora,mbira|kalimba,balafon,djembe,talking drum,steelpan|steel drum,hang drum|handpan,cajon,berimbau,cuica,tamborim,surdo,agogo,guiro,vibraslap,cabasa,glockenspiel,celesta,marimba,xylophone,vibraphone,tubular bells,gamelan,sarangi,santoor,veena,shehnai,bansuri,duduk,zurna,kemenche,saz|baglama,tar,kanun|qanun,ney,santur'); add(4, 100, 'glass armonica,ondes martenot,cristal baschet,hardingfele|hardanger fiddle,cimbalom,tromba marina,lithophone,aeolian harp,waterphone,stroh violin,contrabass clarinet,contrabassoon,sarrusophone,heckelphone,sousaphone,helicon,flugelhorn,cornet,euphonium,tenor horn,baritone horn');
+  // 8 fruits, 30 vegetables, 50 breads
+  alias(8, 'Kiwi', 'Kiwi fruit|Kiwifruit'); alias(8, 'Mangosteen', 'Purple mangosteen');
+  add(30, 45, 'chickpea|garbanzo bean|chick pea,kidney bean,black bean,lentil|lentils,spaghetti squash,acorn squash,bean sprouts|bean sprout,ginger'); add(30, 65, 'lima bean,pinto bean,soybean|soy bean|edamame,black-eyed peas|black eyed pea,broad beans|fava bean|fava beans,butternut squash,hubbard squash,delicata squash,daikon|white radish,wasabi,horseradish,jicama,kohlrabi,rutabaga,turnip,parsnip,celeriac,fennel,endive,radicchio,chard|swiss chard,bok choy,napa cabbage,collard greens,kale,mustard greens,watercress,arugula,okra,artichoke,asparagus,leek,shallot,scallion|green onion,chives'); add(30, 85, 'navy bean,mung bean,runner bean,alfalfa sprouts|alfalfa sprout,mangetout|snow pea,sugar snap pea,romanesco,calabrese,broccolini,broccoflower,cardoon,salsify,burdock|gobo,lotus root,taro,cassava|yuca,yam,sunchoke|jerusalem artichoke|topinambur,oca,ulluco,mashua,samphire,sea beans,fiddleheads,ramps|wild leek,nopales|cactus pad,chayote,bitter melon,luffa|loofah,winter melon|wax gourd,kabocha,patty pan,tatsoi,mizuna,komatsuna,yu choy,gai lan|chinese broccoli,water spinach|kangkong,malabar spinach,new zealand spinach,corn salad|mache|lambs lettuce,borlotti bean|cranberry bean,cannellini bean,great northern bean,azuki bean|adzuki bean'); add(30, 100, 'banana squash,gem squash,crookneck squash,kuri squash,red kuri,cushaw,calabaza,fuzzy melon,horned melon vine,skirret,hamburg parsley,cardoon,celtuce,stem lettuce,lovage,purslane,orach,amaranth leaves,quelites,huauzontle,epazote,papalo,culantro,chicory root,witloof,puntarelle,castelfranco');
+  add(50, 45, 'fruit bread'); add(50, 65, 'epi|baguette epi,pain de mie,casalinga,hardtack|ship biscuit,pane di olive|olive bread,sourdough boule,ciabatta,focaccia,pita,naan,roti,chapati,paratha,lavash,matzo,bagel,pretzel,brioche,challah,pumpernickel,rye,cornbread,soda bread,injera,arepa,tortilla,bao,mantou'); add(50, 85, 'bara brith,barmbrack,cottage loaf,bloomer,tiger bread,farl,bannock,damper,johnnycake,hushpuppy,pandesal,bolillo,telera,pan de muerto,pan dulce,concha,cemita,kulcha,bhatura,puri,sheermal,barbari,sangak,taftan,khubz,manakish,simit,pide,lahmacun,borek,tsoureki,vasilopita,pogaca,kozunak,paska,babka,stollen,panettone,pandoro,colomba,grissini,taralli,piadina,carta di musica|pane carasau,pane di altamura,pugliese,schiacciata,pane toscano,coppia ferrarese,michetta,rosetta,ciriola,pain de campagne,fougasse,pain brie,pain aux noix,ficelle,batard,boule,pain complet,pain poilane,pain levain,knackebrod|crispbread,limpa,rugbrod,lefse,flatbrod,vollkornbrot,roggenbrot,pretzel roll|laugenbrezel,semmel|kaiser roll,bauernbrot,zopf,tessinerbrot'); add(50, 100, 'sangak,tannour bread,lepinja,somun,kifla,pogacha,pita bread,flatbread,injera,kisra,mofo,mandazi,vetkoek,roosterkoek,potbrood,melktert');
+  // 10 rivers
+  add(10, 45, 'Niagara,Red River,Peace River,Slave River,Canadian River,Green River,James River,Yellowstone,Gila,Willamette,Snake River,Potomac,Susquehanna,Hudson,Delaware,Connecticut,Charles,Chattahoochee,Cumberland,Tennessee,Ohio,Arkansas,Platte,Brazos,Pecos,Sacramento,San Joaquin,Colorado,Rio Grande,Columbia,Klamath,Rogue'); add(10, 65, 'White River,Milk River,Niagara River,Arkansas River,Cimarron,Kuskokwim,Rio de la Plata|Río de la Plata|River Plate,Ayeyarwady,Vltava|Moldau,Iguazu|Iguaçu|Iguassu,Vaal,Benue,Tarim,Tapajos|Tapajós,Araguaia,Shatt al-Arab,Hooghly,Panj,Ili,Draa,Fly River,Sepik,Cooper Creek,Desna,Seversky Donets,Northern Dvina,Vyatka,Kama,Oka,Don,Dnieper,Dniester,Bug,Vistula,Oder,Elbe,Weser,Main,Neckar,Moselle,Meuse,Scheldt,Somme,Seine,Loire,Garonne,Dordogne,Rhone,Saone,Po,Tiber,Arno,Adige,Ebro,Tagus|Tejo,Douro|Duero,Guadalquivir,Guadiana,Thames,Severn,Trent,Tyne,Tweed,Clyde,Forth,Shannon,Liffey,Lee,Boyne'); add(10, 85, 'Kagera,Apurimac|Apurímac,Chambeshi,Argun,Shatt al Arab,Naryn,Lower Tunguska,Stony Tunguska,Tsangpo|Yarlung Tsangpo,Breg,Olenyok,Katun,Uele,Zhu Jiang,Songhua,Liao,Yalong,Huai,Han,Wei,Jialing,Hanjiang,Tarim River,Mtkvari|Kura,Aras|Araxes,Karun,Helmand,Kabul,Gomti,Sutlej,Chenab,Jhelum,Ravi,Beas,Kosi,Gandak,Son,Chambal,Betwa,Tapti,Narmada,Mahanadi,Godavari,Krishna,Kaveri|Cauvery,Penner,Tungabhadra,Bhima'); add(10, 100, 'Guapay,Guapore|Guaporé,Iriri,Juruena,Içá|Ica,Putumayo,Caqueta,Japura,Negro,Madeira,Xingu,Tocantins,Uruguay,Parana,Paraguay,Pilcomayo,Bermejo,Salado,Colorado River Argentina,Negro River Argentina,Chubut,Santa Cruz,Lerma,Rio Grande de Santiago,Balsas,Usumacinta,Grijalva,Motagua,Coco,San Juan,Magdalena,Cauca,Orinoco,Apure,Meta,Guaviare,Caroni,Essequibo,Berbice,Courantyne,Maroni,Oyapock,Lomami,Sankuru,Kwango,Aruwimi,Uele River,Ubangi,Sangha,Kasai,Lualaba,Luvua,Chambeshi River,Zambezi,Kafue,Luangwa,Shire,Limpopo,Olifants,Orange,Vaal River,Tugela,Okavango,Cuando,Kunene,Cuanza,Ogooue,Sanaga,Niger,Benue River,Volta,Senegal,Gambia,Draa River,Moulouya,Sebou,Medjerda,Nile,Blue Nile,White Nile,Atbara,Juba,Shebelle,Tana,Rufiji,Ruvuma,Pangani,Cooper,Barcoo,Warburton,Georgina,Murray,Murrumbidgee,Darling,Lachlan,Goulburn,Yarra,Swan,Fitzroy,Daly,Waikato,Clutha,Whanganui');
+  // 17 cars
+  add(17, 85, 'KTM,Gordon Murray,Caparo,BAC,Radical,Morgan Motor,Noble Automotive,Praga,Czinger,Hispano Suiza,Lyons Motor Car,Automobili Estrema,Dendrobium,Aspark,Rimac Automobili,Pininfarina,Touring Superleggera,Zagato,Ruf,Brabus,Alpina,AMG,Mansory,Singer,Lucid Motors,Scout Motors'); alias(17, 'Rimac', 'Rimac Automobili'); alias(17, 'Tesla', 'Tesla Motors|Tesla Inc');
+  // 18 programming languages
+  add(18, 25, 'SQL,HTML,CSS,Bash,PowerShell,Scratch,MATLAB,R,Swift,Kotlin,Go,Rust,Dart,Perl,Lua,Haskell,Assembly|Assembly language|ASM,COBOL,Fortran,Pascal,Lisp,Scala,Objective-C,Visual Basic|VB.NET,Delphi,Julia,Groovy,Elixir,Erlang,Clojure,F#,OCaml'); add(18, 65, 'ALGOL|ALGOL 60|ALGOL 68,AppleScript,AutoHotkey,AWK,Batch|Batch file,bc,Ada,APL,Forth,Prolog,Smalltalk,Scheme,Racket,Common Lisp,Crystal,Nim,Zig,V,Hack,Solidity,Vyper,GDScript,Apex,ABAP,PL/SQL,T-SQL,Tcl,REXX,PostScript,Logo,BASIC,QBasic,TypeScript,CoffeeScript,Elm,PureScript,ReasonML,ReScript,Raku|Perl 6,Wolfram Language|Mathematica,LabVIEW,Simulink,VHDL,Verilog,SAS,Stata,SPSS,Max/MSP,Pure Data,Processing,Arduino,Cobol'); add(18, 85, 'ActionScript,AspectJ,Boo,BETA,ChucK,Clipper,CLU,Csound,CUDA,Cyclone,Eiffel,Euphoria,Factor,FoxPro,Frink,GAMS,Icon,Idris,Inform,io,J,K,Kotlin Native,Lasso,Limbo,LiveScript,Mercury,Miranda,Modula-2,Modula-3,MUMPS,Oberon,Occam,Oz,Pike,PL/I,RPG,Self,SNOBOL,Squirrel,Standard ML|SML,Tcl/Tk,Turing,Unicon,Vala,Whitespace,X10,Xojo,Yorick,Zeek,AMPL,ATS,Agda,Coq,Lean,Isabelle,ACL2,Alloy,Datalog,Curry,Clean,Joy,Cat,Factor language,Ioke,Gosu,Ceylon,Fantom,Xtend,Opa,Haxe,Dylan,Chapel,Fortress,Pony,Reia,Red,Rebol,Ring,Wren,Janet,Fennel,Hy,MoonScript,Genie,Lobster,Vlang,Odin,Jai,Carbon,Mojo'); add(18, 100, 'Brainfuck,Malbolge,LOLCODE,INTERCAL,Befunge,Piet,Shakespeare,Chef,Whitespace language,Ook!,Rockstar,Velato,Cow,Unlambda,Thue,FALSE,Underload,Trefunge,Hexagony,Cardinal,Cubix,Gibberish,ArnoldC,BIT,Deadfish,FRACTRAN,GolfScript,05AB1E,Jelly,Pyth,Vyxal,Whenever,Taxi,Folders,Fish,Beatnik,Grass,Emojicode,Bash Brainf,TECO,JOVIAL,CPL,BCPL,B,PL/M,SPARK,Planner,Prograph,SISAL,SETL,SIMULA,SmallTalk-80,Snowball,Pawn,Hugo,Ratfor,Sather,Seed7,SuperCollider,Joule,Kaleidoscope,Kojo,KRYPTON,Mathematica,Maude,Maxima,NetLogo,Nemerle,Nial,NXT-G,Oxygene,Pliant,Poplog,PureBasic,Rapira,Rust language,S-Lang,Sed,Slate,SMALL,SR,Sway,Tom,Tuscript,Visual Prolog,Z shell|zsh,ZPL');
+  // 33 spices & herbs
+  add(33, 45, 'garlic powder,garlic salt,lemon pepper,old bay,jerk seasoning|jamaican jerk,five spice|five-spice powder,chili flakes|red pepper flakes,cayenne|cayenne pepper,chili powder,peppercorn|black peppercorn,horseradish,wasabi,bay leaf,fennel seed,celery seed,poppy seed,sesame seed,juniper berry'); add(33, 65, 'harissa,baharat,garam masala,chaat masala,tandoori masala,ras el hanout,herbes de provence,bouquet garni,fines herbes,pumpkin pie spice,mixed spice,mulling spices,montreal steak seasoning,adobo,sazon,cajun seasoning,creole seasoning,taco seasoning,everything bagel seasoning,furikake,shichimi|shichimi togarashi,gochugaru,sumac,zaatar|za\'atar,dukkah|duqqa,licorice|liquorice,cassia,dill seed,coriander seed,nigella|black seed|nigella sativa,holy basil|tulsi,thai basil,lemon basil,lemon balm,lemongrass|lemon grass,galangal|greater galangal|lesser galangal,kaffir lime leaf|makrut lime leaf,curry leaf,pandan,shiso|perilla,mitsuba,epazote,hoja santa,culantro,rau ram|vietnamese coriander,lovage,sorrel,chervil,tarragon,savory,marjoram'); add(33, 85, 'kokum,amchoor|amchur,camphor,zedoary,zereshk|barberry,korarima,radhuni,aonori,mugwort,lemon myrtle,tasmanian pepper|mountain pepper,grains of paradise|melegueta pepper|alligator pepper,long pepper,cubeb|tailed pepper,pink peppercorn,sichuan pepper|szechuan pepper,timut pepper,voatsiperifery,njangsa,uzazi|ashanti pepper,asafoetida|hing,ajwain|carom,fenugreek,kalonji,panch phoron,advieh,hawaij,tabil,mitmita,berbere,khmeli suneli,adjika,quatre epices,vadouvan,recado rojo|achiote|annatto,mace,tonka bean,vanilla,saffron,mastic|mastiha,mahleb|mahlab,orris root,galbanum,sassafras|file powder|gumbo file,sarsaparilla,yuzu kosho,doubanjiang,douchi,gochujang,idli podi,chenpi|dried tangerine peel,dried lime|loomi|black lime,rose petals,charoli,golpar|persian hogweed,bunium persicum|black cumin,fingerroot|krachai,aromatic ginger,mango ginger,jimbu,kinh gioi,houttuynia|fish mint,limnophila,boldo,cicely,sweet cicely,garlic chives,cress'); add(33, 100, 'beau monde seasoning,buknu,chaunk|tadka,crab boil,sharena sol,persillade,powder-douce,qalat daqqa,cesil,sarcodon,sansho|japanese pepper,kinome,hajikami,yuzu zest,ground cherry,ume,sumiso,aji amarillo,rocoto,huacatay,paico,chincho,muna,yacon,galanga,pepper dulse,dulse,nori flakes,kombu,wakame,hijiki');
+  // 34 dinosaurs
+  add(34, 45, 'Allosaurus,Spinosaurus,Carnotaurus,Dilophosaurus,Compsognathus,Parasaurolophus,Pachycephalosaurus,Ankylosaurus,Gallimimus,Brachiosaurus,Diplodocus,Apatosaurus,Stegosaurus'); add(34, 65, 'Baryonyx,Giganotosaurus,Therizinosaurus,Oviraptor,Utahraptor,Deinonychus,Albertosaurus,Gorgosaurus,Ceratosaurus,Megalosaurus,Iguanodon,Hadrosaurus,Edmontosaurus,Maiasaura,Corythosaurus,Lambeosaurus,Kentrosaurus,Nodosaurus,Euoplocephalus,Styracosaurus,Pentaceratops,Chasmosaurus,Protoceratops,Psittacosaurus,Argentinosaurus,Patagotitan,Dreadnoughtus,Camarasaurus,Mamenchisaurus,Amargasaurus,Nigersaurus,Plateosaurus,Coelophysis,Herrerasaurus,Eoraptor,Archaeopteryx,Microraptor,Sinosauropteryx,Mosasaurus,Plesiosaurus,Pteranodon'); add(34, 85, 'Adasaurus,Draconyx,Qiaowanlong,Tianyulong,Falcarius,Vulcanodon,Barapasaurus,Zuolong,Auroraceratops,Talarurus,Aepisaurus,Anabisetia,Epachthosaurus,Spinophorosaurus,Lophostropheus,Kangnasaurus,Neuquenraptor,Ningyuansaurus,Luoyanggia,Wellnhoferia,Tenchisaurus,Daanosaurus,Lufengocephalus,Jiangxisaurus,Aublysodon,Laplatasaurus,Issasaurus,Empaterias,Ojoraptorsaurus,Hecatasaurus,Lycorhinus,Lagerpeton,Ceratops,Cryolophosaurus,Concavenator,Deinocheirus,Ouranosaurus,Suchomimus,Irritator,Rugops,Majungasaurus,Masiakasaurus,Rajasaurus,Mapusaurus,Acrocanthosaurus,Torvosaurus,Yangchuanosaurus,Guanlong,Dilong,Yutyrannus,Gigantoraptor,Beipiaosaurus,Mei long,Yi qi,Zhenyuanlong,Kulindadromeus,Tsintaosaurus,Sinoceratops,Zuniceratops,Kosmoceratops,Nasutoceratops,Diabloceratops,Albertaceratops,Einiosaurus,Achelousaurus,Pachyrhinosaurus,Regaliceratops,Wendiceratops,Medusaceratops,Sinornithosaurus,Caudipteryx,Epidexipteryx,Scansoriopteryx,Anchiornis,Aurornis,Xiaotingia'); add(34, 100, 'Qantassaurus,Leaellynasaura,Muttaburrasaurus,Minmi,Kakuru,Timimus,Australovenator,Diamantinasaurus,Wintonotitan,Savannasaurus,Rapator,Austrosaurus,Rhoetosaurus,Ozraptor,Walgettosuchus,Agrosaurus,Technosaurus,Revueltosaurus,Pisanosaurus,Lesothosaurus,Fabrosaurus,Scutellosaurus,Scelidosaurus,Emausaurus,Tatisaurus,Yinlong,Liaoceratops,Chaoyangsaurus,Hongshanosaurus,Archaeoceratops,Bagaceratops,Graciliceratops,Leptoceratops,Montanoceratops,Udanoceratops,Cerasinops,Prenoceratops,Gryphoceratops,Aquilops');
+  // 35 colors
+  add(35, 45, 'Magenta,Cyan,Turquoise,Teal,Maroon,Navy,Crimson,Scarlet,Indigo,Violet,Lavender,Beige,Ivory,Tan,Gold,Silver,Bronze,Coral,Salmon,Peach,Mint,Lime,Olive,Aqua,Fuchsia'); add(35, 65, 'Periwinkle,Chartreuse,Mauve,Vermilion,Cerulean,Ochre|Ocher,Sienna,Umber,Taupe,Fawn,Khaki,Mustard,Burgundy,Cobalt,Azure,Amber,Sapphire,Emerald,Ruby,Jade,Lilac,Plum,Orchid,Cerise,Carmine,Puce,Cream,Ecru,Auburn,Russet,Rust,Sepia,Slate,Charcoal,Ebony,Cornflower,Denim,Almond,Apricot,Asparagus,Beaver,Bittersweet,Blush,Canary,Caribbean Green,Carnation Pink,Chestnut,Cotton Candy,Dandelion,Desert Sand,Eggplant,Electric Lime,Atomic Tangerine,Banana Mania,Brick Red,Burnt Orange,Burnt Sienna,Cadet Blue,Antique Brass'); add(35, 85, 'Razzmatazz,Razzle Dazzle Rose,Tickle Me Pink,Macaroni and Cheese,Screamin Green|Screamin\' Green,Wild Watermelon,Shocking Pink,Outrageous Orange,Unmellow Yellow,Laser Lemon,Neon Carrot,Hot Magenta,Purple Mountains Majesty,Mountain Meadow,Manatee,Mango Tango,Jazzberry Jam,Fuzzy Wuzzy,Inchworm,Granny Smith Apple,Goldenrod,Gray,Green Yellow,Jungle Green,Magic Mint,Maize,Melon,Midnight Blue,Mulberry,Navy Blue,Olive Green,Orange Red,Orange Yellow,Orchid,Outer Space,Pacific Blue,Peach,Periwinkle,Piggy Pink,Pine Green,Pink Flamingo,Pink Sherbet,Plum,Purple Heart,Purple Pizzazz,Radical Red,Raw Sienna,Raw Umber,Red Orange,Red Violet,Robins Egg Blue,Royal Purple,Salmon,Scarlet,Sea Green,Sepia,Shadow,Silver,Sky Blue,Spring Green,Sunglow,Sunset Orange,Tan,Teal Blue,Thistle,Timberwolf,Tropical Rain Forest,Tumbleweed,Turquoise Blue,Vivid Tangerine,Vivid Violet,Wild Blue Yonder,Wild Strawberry,Wisteria,Yellow Green,Yellow Orange'); add(35, 100, 'Glaucous,Gamboge,Celadon,Viridian,Verdigris,Xanadu,Zaffre,Heliotrope,Mikado Yellow,Bistre,Cinereous,Isabelline,Liver,Eburnean,Falu Red,Feldgrau,Fulvous,Jasmine,Lust,Murrey,Ochre Yellow,Pomp and Power,Rackley,Rose Quartz,Rufous,Smaragdine,Tuscan Red,Tyrian Purple,Ultramarine,Vanilla,Xanthic,Zomp,Aureolin,Bone,Byzantium,Cardinal,Citrine,Cordovan,Cyber Yellow,Eerie Black,Feldspar,Gunmetal,Harlequin,Jonquil,Lapis Lazuli,Liberty,Mahogany,Alabaster,Alizarin,Amaranth,Amethyst,Arylide Yellow,Bisque,Bole,Cadmium Red,Cadmium Yellow');
+  // 36 birds
+  add(36, 25, 'cardinal,robin,blue jay,sparrow,hummingbird,mockingbird,woodpecker,bluebird,chickadee,finch,dove,goose,duck,heron,crane,hawk,vulture'); add(36, 45, 'Canada Goose,Mallard,Bald Eagle,Golden Eagle,Red-tailed Hawk,Great Horned Owl,Barn Owl,Snowy Owl,Northern Cardinal,American Robin,Blue Jay,Mourning Dove,Rock Pigeon,House Sparrow,European Starling,Red-winged Blackbird,American Goldfinch,Northern Mockingbird,Baltimore Oriole,Scarlet Tanager,Indigo Bunting,Painted Bunting,Ruby-throated Hummingbird,Great Blue Heron,Great Egret,Snowy Egret,Wood Duck,Sandhill Crane,Whooping Crane,Wild Turkey,Ring-necked Pheasant,Ruffed Grouse,Peregrine Falcon,American Kestrel,Osprey,Turkey Vulture,Common Loon,Atlantic Puffin,Brown Pelican,Roseate Spoonbill'); add(36, 65, 'Black-capped Chickadee,Tufted Titmouse,White-breasted Nuthatch,Carolina Wren,House Wren,Eastern Bluebird,Western Meadowlark,Eastern Meadowlark,Cedar Waxwing,Bohemian Waxwing,Evening Grosbeak,Rose-breasted Grosbeak,Pine Siskin,Purple Finch,House Finch,Dark-eyed Junco,White-crowned Sparrow,Song Sparrow,Chipping Sparrow,Yellow Warbler,Yellow-rumped Warbler,Black-throated Blue Warbler,Prothonotary Warbler,Cerulean Warbler,Common Yellowthroat,Ovenbird,American Redstart,Bobolink,Common Grackle,Brown-headed Cowbird,Belted Kingfisher,Pileated Woodpecker,Downy Woodpecker,Hairy Woodpecker,Red-bellied Woodpecker,Northern Flicker,Yellow-bellied Sapsucker,Acorn Woodpecker,Steller\'s Jay|Stellers Jay,California Scrub-Jay,Clark\'s Nutcracker|Clarks Nutcracker,Black-billed Magpie,Common Raven,American Crow,Fish Crow,Horned Lark,Barn Swallow,Tree Swallow,Purple Martin,Chimney Swift,Common Nighthawk,Whip-poor-will|Whippoorwill,Greater Roadrunner|Roadrunner,Cactus Wren,Gambel\'s Quail|Gambels Quail,California Quail,Northern Bobwhite,Greater Sage-Grouse|Sage Grouse,Sharp-tailed Grouse,Lesser Prairie-Chicken|Prairie Chicken,Dunlin,Sanderling,Killdeer,American Oystercatcher,Black Skimmer,Laughing Gull,Ring-billed Gull,Herring Gull,Arctic Tern,Common Tern,Caspian Tern,Brown Booby,Northern Gannet,Double-crested Cormorant,Anhinga,Wood Stork,White Ibis,Glossy Ibis,Sora,Virginia Rail,American Coot,Common Gallinule,Limpkin,Belted Kingfisher'); add(36, 85, 'Black-bellied Whistling-Duck,Fulvous Whistling-Duck,Pink-footed Goose,Greater White-fronted Goose,Emperor Goose,Snow Goose,Ross\'s Goose|Rosss Goose,Brant,Barnacle Goose,Cackling Goose,Mute Swan,Trumpeter Swan,Tundra Swan,Whooper Swan,Muscovy Duck,Gadwall,Falcated Duck,Eurasian Wigeon,American Wigeon,American Black Duck,Mottled Duck,Blue-winged Teal,Cinnamon Teal,Northern Shoveler,Northern Pintail,Garganey,Baikal Teal,Green-winged Teal,Canvasback,Redhead,Common Pochard,Ring-necked Duck,Tufted Duck,Greater Scaup,Lesser Scaup,Steller\'s Eider,Spectacled Eider,King Eider,Common Eider,Harlequin Duck,Labrador Duck,Surf Scoter,White-winged Scoter,Black Scoter,Long-tailed Duck,Bufflehead,Common Goldeneye,Barrow\'s Goldeneye,Hooded Merganser,Common Merganser,Red-breasted Merganser,Ruddy Duck,Taiga Bean-Goose,Tundra Bean-Goose,Graylag Goose,Lesser White-fronted Goose,Egyptian Goose,Eastern Spot-billed Duck,White-cheeked Pintail'); add(36, 100, 'Kakapo,Kea,Kiwi,Takahe,Shoebill,Hoatzin,Oilbird,Tawny Frogmouth,Potoo,Lyrebird,Bird-of-paradise|Birds of paradise,Bowerbird,Cassowary,Rhea,Emu,Ostrich,Secretarybird|Secretary bird,Great Argus,Quetzal,Resplendent Quetzal,Cock-of-the-rock,Umbrellabird,Capuchinbird,Bellbird,Three-wattled Bellbird,Harpy Eagle,Philippine Eagle,Steller\'s Sea Eagle,Haast\'s Eagle,Andean Condor,California Condor,Lammergeier|Bearded Vulture,Lappet-faced Vulture,Hooded Vulture,Egyptian Vulture,Rhinoceros Hornbill,Great Hornbill,Hoopoe,Bee-eater,Roller,Lilac-breasted Roller,Motmot,Jacamar,Puffbird,Toucan Barbet,Tinamou,Seriema,Sunbittern,Kagu,Trumpeter,Screamer,Jacana,Painted Snipe,Crab Plover,Ibisbill,Pratincole,Courser,Sheathbill,Skua,Jaeger,Fulmar,Shearwater,Storm Petrel,Albatross,Wandering Albatross,Frigatebird,Tropicbird,Gannet,Penguin,Emperor Penguin,Galapagos Penguin,Hoatzin bird');
+  // 37 flowers
+  add(37, 45, 'clover,water lily,thistle,narcissus,gerbera|gerbera daisy,orange blossom,holly,lotus|lotus flower,mimosa,rhododendron,peach blossom,cherry blossom,magnolia,hibiscus,hydrangea,camellia,azalea,peony,dahlia,zinnia,marigold,pansy,petunia,snapdragon,carnation,chrysanthemum,gardenia,jasmine,lily of the valley,poppy,sunflower,daffodil,crocus,hyacinth,iris,lavender,orchid,tulip'); add(37, 65, 'amaranth,bellflower|campanula,bergamot|bee balm,bottlebrush,lady\'s slipper|ladys slipper,aster,anemone,columbine,delphinium,foxglove,hollyhock,lupine,larkspur,cosmos,gaillardia|blanket flower,echinacea|coneflower,black-eyed susan,bluebonnet,indian paintbrush,primrose,forget-me-not,bleeding heart,fuchsia,begonia,impatiens,geranium,pelargonium,verbena,salvia,lobelia,nasturtium,sweet pea,morning glory,bougainvillea,wisteria,clematis,honeysuckle,passionflower,trumpet vine'); add(37, 85, 'edelweiss,protea,bird of paradise,anthurium,heliconia,ginger lily,plumeria|frangipani,bottle gentian,fringed gentian,trillium,jack-in-the-pulpit,skunk cabbage,pitcher plant,venus flytrap,sundew,corpse flower|titan arum,rafflesia,ghost orchid,moth orchid|phalaenopsis,cattleya,dendrobium,cymbidium,paphiopedilum,snowdrop,winter aconite,hellebore|christmas rose,cyclamen,saxifrage,gentian,yarrow,tansy,feverfew,chicory,cornflower|bachelor\'s button,love-in-a-mist|nigella,statice,sea holly,globe thistle,allium,agapanthus,alstroemeria|peruvian lily,amaryllis,freesia,gladiolus,ranunculus,lisianthus,stock,wallflower,sweet william,baby\'s breath|gypsophila');
+  // 51 cat breeds
+  add(51, 85, 'American Wirehair,Australian Mist,British Longhair,European Shorthair,Javanese,Oriental Longhair,Thai,Brazilian Shorthair,Foldex,Highlander,Korean Bobtail,Mekong Bobtail,Minskin,German Rex,Oregon Rex,Chantilly-Tiffany|Chantilly Tiffany,California Spangled,Dragon Li|Li Hua,Ukrainian Levkoy,Asian Semi-longhair|Burmilla Longhair,Oriental Bicolor,Serrade Petit,Peterbald,Toyger,Lykoi,Bambino,Dwelf,Elf cat,Kinkalow,Napoleon|Minuet,Munchkin,Lambkin,Skookum,Genetta,Safari,Chausie,Savannah,Serengeti,Bengal,Ocicat,Egyptian Mau,Pixie-bob,Cheetoh'); add(51, 100, 'Suphalak,Korn Ja,Sam Sawet,Raas,Aegean,Cyprus,PerFold,Thai Lilac,Burmilla,Tiffanie,Havana Brown,Khao Manee,Singapura,Sokoke,Arabian Mau,Asian,Colorpoint Shorthair,Desert Lynx,Donskoy,Kurilian Bobtail,Karelian Bobtail,Lykoi cat,Nebelung,Neva Masquerade,Pixiebob,Tonkinese,Turkish Van,Turkish Angora');
+  // 9 sports
+  add(9, 45, 'air hockey,airsoft,aikido,angling|sport fishing,artistic gymnastics,auto racing|car racing|motorsport,axe throwing,backgammon,backstroke,baton twirling,beach tennis,beach volleyball,beer pong|beirut,bodybuilding,bouldering,bowls|lawn bowls,breaststroke,butterfly stroke,calf roping,canadian football,checkers|draughts,chess,drag racing,drone racing,esports,flag rugby,freestyle swimming,golf cart racing,hot air ballooning,ice hockey,inline skating|roller skating,laser tag,paintball,pole dancing,powerlifting,skydiving,slacklining,speedcubing,sport stacking|cup stacking,stand up paddleboarding|paddleboarding|sup,tug of war,wakesurfing,wall climbing|rock climbing'); add(9, 65, 'abseiling|rappelling,aerobic gymnastics|sport aerobics,artistic cycling,aquathlon,arena football,australian handball,ba game,ball badminton,ball hockey,bar billiards,bartitsu,beach handball,beach rugby,bicycle polo,biribol,blackball,board track racing,boli khela,bolas criollas,boule lyonnaise,box lacrosse,british bulldogs,brännboll|brannboll,bumper pool,bunnock,butts up,caid,calcio,calvinball,camogie,campdrafting,canne de combat,capture the flag,carom billiards|carom,casting|fly casting,catch wrestling,cestoball,chariot racing,charreada|charreria,chinese chess,chess boxing,cockfighting,cornhole,cricket 20,croquet golf,crossfit,cue sports,curling stones,dartchery,dodgeball,dog agility,dog sled racing,dressage,drift racing,eventing,fierljeppen,fistball,fives,flyball,footbag,foot volley,footgolf,freediving,freerunning,frisbee,gaelic handball,glima,gliding|soaring,goalball,handball,hang gliding,hapkido,hornussen,horse vaulting|equestrian vaulting,hurdling,iaido,ice stock sport|eisstock,inline hockey,jai alai,jousting,jukskei,kabbadi,kayak polo,kendo,kenjutsu,kho kho,kin-ball|kinball,kite flying,kitesurfing,knattleikr,korfball,krav maga,kronum,lawn darts,log rolling|birling,longboarding,luge,mallet sports,mini golf|miniature golf|putt-putt,motorboat racing,mountain boarding,mounted archery,muggle quidditch|quidditch,netball,ninepin bowling,octopush,orienteering,paddle tennis,pankration,parasailing,pelota,pétanque,pickleball,pitch and putt,pole vault,quad racing,racewalking|race walking,racketlon,rafting,reining,rhythmic gymnastics,ringette,rodeo,roller hockey,rope jumping|jump rope|skipping,rowing machine|erg,rugby league,rugby sevens,rugby union,sandboarding,savate,sepak takraw,shinty,shooting,shot put,shuffleboard,skeet shooting,sky running,skyrunning,snowshoeing,snooker,soap box derby,speedminton|crossminton,speed climbing,sports acrobatics,squash,stoolball,street luge,sumo,tchoukball,tennis polo,tetherball,trampolining,trap shooting,ultimate,underwater hockey,underwater rugby,vovinam,wakeboarding,wall ball,water skiing,wheelchair basketball,wheelchair rugby,wheelchair tennis,wife carrying,wushu|kung fu,yacht racing,zorbing|zorb football'); add(9, 85, 'bossaball,43-man squamish,austus,aizkolaritza,basque traditional weightlifting,bagatelle,balkline,bandy|rink bandy,baguazhang,battojutsu,beagling,big game hunting,bushwhacking,bujinkan,cammag,cheese rolling,conkers,fox hunting,hare coursing,hawking|falconry,hornussen,jereed|cirit,kabaddi,kokpar|buzkashi,laser run,mölkky|molkky,pesäpallo|pesapallo,pétanque|petanque,rock paper scissors championship,sepak raga,skijoring,stone skipping,sumo wrestling,toe wrestling,tree climbing,wellie wanging|welly wanging,worm charming');
+  // 5 cheese: nothing new here (list was already large); 19/others unchanged
+})();
 
 // ---- Birdie Dive: tilted putting view. Draws the green as real terrain from behind the ball, with slope arrows that glide inside their own grid squares. ----
 // One camera shape for every green (height and distance scale with the green's length), so the perspective always looks the same.
@@ -1850,7 +1940,8 @@ function makeView(cv, g, seed) {
   'use strict';
   const TS = window.__TS || 1;
   const D = ms => Math.max(40, Math.round(ms * TS));
-  const NR = 10, TQ = 15000, KQ = 25000, VT = 15000, RT = 8000, RK = 12000, PUTT_MS = 10000, GRACE = 1700;
+  const NR = 10, TQ = 15000, KQ = 25000, VT = 15000, RT = 8000, RK = 12000, PUTT_MS = 10000, GRACE = 2200, GATE_MAX = 9000;
+  const GATED = ['question', 'vote', 'putt']; // timed phases wait for every phone to confirm it has the screen before the clock starts
   const COLORS = ['#FF6B6B', '#FF9F43', '#FFD23F', '#B6F06A', '#2EE6D6', '#5BB8FF', '#A78BFA', '#FF7EC8'];
   const MAXP = 8;
   const $view = document.getElementById('view'), $hud = document.getElementById('hud'), $foot = document.getElementById('foot'), $toast = document.getElementById('toast');
@@ -1880,7 +1971,7 @@ function makeView(cv, g, seed) {
 
   // ---------- state ----------
   let db = null, user = null, uid = null, meInfo = null;
-  let S = null, P = {}, R = {}, A = {}, V = {};
+  let S = null, P = {}, R = {}, A = {}, V = {}, AK = {}, lastAck = 0;
   let leftGid = null, exitStep = false;
   let curGid = null, subs = [], hostSubs = [], hostGid = null;
   let lastSeq = -1, lastGid = null, firstLoad = true, phaseStart = Date.now();
@@ -1924,10 +2015,11 @@ function makeView(cv, g, seed) {
 
   function switchGame(gid) {
     subs.forEach(f => f()); subs = []; hostSubs.forEach(f => f()); hostSubs = []; hostGid = null;
-    curGid = gid; P = {}; R = {}; A = {}; V = {};
+    curGid = gid; P = {}; R = {}; A = {}; V = {}; AK = {};
     const g = db.doc('games/' + gid);
     subs.push(g.collection('players').onSnapshot(s => { P = {}; s.docs.forEach(d => { P[d.id] = d.data(); }); onData(); }, dbErr));
     subs.push(g.collection('rounds').onSnapshot(s => { R = {}; s.docs.forEach(d => { R[d.id] = d.data(); }); onData(); }, dbErr));
+    subs.push(g.collection('acks').onSnapshot(s => { AK = {}; s.docs.forEach(d => { AK[d.id] = d.data(); }); hostEarly(); onData(); }, dbErr));
   }
   function ensureHostSubs() {
     if (!isHost() || hostGid === curGid) return;
@@ -1945,10 +2037,28 @@ function makeView(cv, g, seed) {
     }
     if (S) firstLoad = false;
     ensureHostSubs();
+    sendAck();
     onData();
     hostArm();
   }
   function onData() { refresh(); }
+  // handshake: when a timed screen is announced but not started, confirm receipt. The host starts the clock once everyone has confirmed.
+  function sendAck(force) {
+    if (!S || S.go !== 0 || !inGame() || !db || !uid) return;
+    const key = S.seq + '_' + uid;
+    if (AK[key] && !force) return;
+    if (!force && Date.now() - lastAck < 400) return;
+    lastAck = Date.now();
+    const gid = S.gid;
+    W(() => db.doc(`games/${gid}/acks/${key}`).set({ s: S.seq, u: uid, t: Date.now() }), true);
+  }
+  const ackedBy = () => (S && S.pl ? S.pl.filter(u => AK[S.seq + '_' + u]) : []);
+  async function release() {
+    if (!isHost() || !S || S.go !== 0) return;
+    const late = (S.pl || []).filter(u => !AK[S.seq + '_' + u]);
+    const ns = Object.assign({}, S, { go: 1, late, seq: S.seq + 1, t0: Date.now() });
+    if (await W(() => lobbyRef().set(ns), true)) { S = ns; onState(); } else schedule(release, 1500);
+  }
 
   // ---------- host engine ----------
   function schedule(fn, ms) { clearTimeout(hostTimer); hostTimer = setTimeout(fn, Math.max(0, ms)); }
@@ -1958,6 +2068,7 @@ function makeView(cv, g, seed) {
     if (armed === id) return;
     armed = id;
     clearTimeout(hostTimer);
+    if (S.go === 0) { schedule(release, D(GATE_MAX)); return; }
     const lf = Math.min(S.dur, Math.max(0, S.dur - (Date.now() - S.t0)));
     switch (S.phase) {
       case 'question': schedule(advance, lf + D(GRACE)); break;
@@ -1968,9 +2079,10 @@ function makeView(cv, g, seed) {
       default: break;
     }
   }
-  let PT = {}, putEarlyArmed = '';
+  let PT = {}, putEarlyArmed = '', gateArmed = '';
   function hostEarly() {
     if (!isHost() || !S || !S.pl) return;
+    if (S.go === 0) { if (S.pl.every(u => AK[S.seq + '_' + u])) { const id = 'g' + S.gid + S.seq; if (gateArmed !== id) { gateArmed = id; schedule(release, 350); } } return; }
     if (S.phase === 'question' && S.pl.every(u => A['r' + S.round + '_' + u])) schedule(advance, 500);
     if (S.phase === 'vote' && S.pl.every(u => V['r' + S.round + '_' + u])) schedule(advance, 500);
     if (S.phase === 'putt' && S.pl.every(u => PT['r' + S.round + '_' + u] && PT['r' + S.round + '_' + u].shot)) {
@@ -1981,6 +2093,8 @@ function makeView(cv, g, seed) {
   }
   async function setPhase(patch) {
     const ns = Object.assign({}, S, patch, { seq: S.seq + 1, t0: Date.now() });
+    ns.late = [];
+    ns.go = GATED.includes(ns.phase) && ns.pl && ns.pl.length ? 0 : 1;
     const ok = await W(() => lobbyRef().set(ns));
     if (!ok) throw new Error('write failed');
     S = ns; onState();
@@ -1993,6 +2107,7 @@ function makeView(cv, g, seed) {
   }
   async function advance() {
     if (!isHost() || !S || adv === S.seq) return;
+    if (S.go === 0) { release(); return; }
     adv = S.seq;
     const seq = S.seq;
     try {
@@ -2065,7 +2180,16 @@ function makeView(cv, g, seed) {
   async function startGame() {
     const pl = Object.keys(P).sort((a, b) => (P[a].j || 0) - (P[b].j || 0)).slice(0, MAXP);
     if (!pl.length) return;
-    const plan = makePlan(TRIVIA.length, KRILL.length);
+    // deal from the group's saved shuffled deck so questions don't repeat until every one has been used
+    let pick = null;
+    try {
+      const ref = db.doc('meta/deck'), snap = await ref.get(), sv = snap.exists ? snap.data() : {};
+      const ti = TRIVIA.map(t => deckId(t[1])), ki = KRILL.map(k => deckId(k.p));
+      const dt = dealDeck(sv.t, ti, TRIVIA.map(t => t[0]), 5, Math.random, 2), dk = dealDeck(sv.k, ki, null, 5, Math.random, 0);
+      pick = { t: dt.idx, k: dk.idx };
+      W(() => ref.set({ t: dt.deck, k: dk.deck, at: Date.now() }), true);
+    } catch (e) { console.warn('deck unavailable, dealing at random', e); }
+    const plan = makePlan(TRIVIA.length, KRILL.length, Math.random, pick);
     try { await setPhase({ phase: 'question', round: 0, plan, pl, dur: D(plan[0].f === 'T' ? TQ : KQ) }); } catch (e) { /* toast already shown */ }
   }
   function exitGame() {
@@ -2113,6 +2237,7 @@ function makeView(cv, g, seed) {
     if (k === 'intro') return buildIntro();
     if (k.startsWith('lobby')) return buildLobby();
     if (k.startsWith('watch')) return buildWatch();
+    if (S.go === 0) return buildGate();
     switch (S.phase) {
       case 'question': return buildQuestion();
       case 'vote': return buildVote();
@@ -2404,6 +2529,28 @@ function makeView(cv, g, seed) {
     return { el: track, set, get: () => v };
   }
 
+  // ---------- handshake screen ----------
+  function buildGate() {
+    const pl = S.plan && S.plan[S.round], what = S.phase === 'putt' ? 'Putt' : S.phase === 'vote' ? 'Group vote' : (pl && pl.f === 'K' ? 'Deep answer' : 'Trivia');
+    const list = h('div', { class: 'list' }), note = h('p', { class: 'sub' }, ''), t0 = Date.now();
+    const skip = h('button', { class: 'btn gold', onclick: () => release() }, 'Start now');
+    skip.hidden = true;
+    function draw() {
+      const ok = new Set(ackedBy());
+      list.replaceChildren((S.pl || []).map(u => h('div', { class: 'row' + (u === uid ? ' me' : '') }, dotEl(u), h('span', { class: 'grow name' }, pName(u) + (u === uid ? ' (you)' : '')), h('span', { class: 'pts ' + (ok.has(u) ? 'plus' : 'zero') }, ok.has(u) ? '✓' : '…'))));
+      const n = (S.pl || []).length, waiting = (S.pl || []).filter(u => !ok.has(u));
+      note.textContent = waiting.length ? `Making sure everyone has the screen first. Waiting on ${waiting.slice(0, 3).map(pName).join(', ')}${waiting.length > 3 ? '…' : ''}.` : 'Everyone is in. Starting…';
+      skip.hidden = !(isHost() && waiting.length && Date.now() - t0 > 3000);
+      void n;
+    }
+    return {
+      root: h('div', { class: 'col' }, h('span', { class: 'cat' }, what), h('h2', { class: 'q' }, 'Get ready'), note, list, skip),
+      mounted() { draw(); },
+      update() { draw(); },
+      tick() { if (S.go === 0 && !AK[S.seq + '_' + uid] && Date.now() - lastAck > 2000) sendAck(true); if (isHost()) draw(); }
+    };
+  }
+
   // ---------- putt ----------
   function buildPutt() {
     const r = S.round, seed = S.plan[r].s, g = makeGreen(seed);
@@ -2583,6 +2730,7 @@ function makeView(cv, g, seed) {
       const cred = await fb.auth().signInAnonymously();
       uid = cred.user.uid;
       db = fb.firestore();
+      try { db.settings({ experimentalAutoDetectLongPolling: true, merge: true }); } catch (e) { /* settings already applied */ }
     } else if (cl && cl.use) { db = await cl.use('db'); user = await cl.use('user'); }
   } catch (e) { console.warn(e); }
   if (user) { try { meInfo = await user.me(); uid = meInfo.id || (await user.id()); } catch (e) { console.warn(e); } }
