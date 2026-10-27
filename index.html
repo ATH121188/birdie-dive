@@ -242,6 +242,15 @@ button.chip { cursor: pointer; min-height: 30px; }
 .hud-r { gap: 6px; }
 .chip { padding: 3px 9px; }
 
+/* putting view */
+.stage { display: block; }
+.green { margin-bottom: 5px; }
+.aimrow { display: flex; align-items: center; gap: 10px; }
+.rowlab { width: 52px; flex: none; font-weight: 800; }
+.aimrow .trk.h { flex: 1; }
+.trk.h .fill { top: 0; bottom: auto; height: 100%; }
+.hud-r{flex-wrap:wrap;justify-content:flex-end;gap:6px}.hud{align-items:flex-start}
+
 </style>
 </head>
 <body>
@@ -1294,7 +1303,12 @@ function makePlan(nT, nK, rnd) {
 }
 
 // ---- the green and the putt ----
-const G_ACC = 23, FRIC = 1.8, HOLE_R = 0.2, DT = 1 / 240, SAMPLE = 0.05;
+const G_ACC = 23, FRIC = 1.8, HOLE_R = 0.22, DT = 1 / 240, SAMPLE = 0.05;
+// slopes are scaled up so the break matches how dramatic the green looks; the green has real edges the ball can fall off
+// the cup keeps a ball only if it is slow enough for how far off-center it crosses: fastest at dead center, zero speed allowed at the rim
+const CAPTURE_V = 6.5;
+const POLE_R = 0.09, POLE_E = 0.45; // a ball too fast to drop that hits the flagstick bounces off it
+const SLOPE_K = 1.5, GREEN_W = 6.3, GREEN_NEAR = 3, GREEN_FAR = 4;
 function makeGreen(seed) {
   const r = mulberry32(seed);
   const D = 6.5 + r() * 19.5;
@@ -1303,9 +1317,9 @@ function makeGreen(seed) {
   const waves = [];
   for (let i = 0; i < 2; i++) {
     const lam = 7 + r() * 10, phi = r() * Math.PI * 2, psi = r() * Math.PI * 2, amp = 0.006 + r() * 0.01;
-    waves.push({ kx: Math.cos(phi) * 2 * Math.PI / lam, ky: Math.sin(phi) * 2 * Math.PI / lam, dx: Math.cos(phi), dy: Math.sin(phi), psi, amp });
+    waves.push({ kx: Math.cos(phi) * 2 * Math.PI / lam, ky: Math.sin(phi) * 2 * Math.PI / lam, dx: Math.cos(phi), dy: Math.sin(phi), psi, amp: amp * SLOPE_K });
   }
-  return { D, hx, hy: D, gx0: Math.cos(a0) * m0, gy0: Math.sin(a0) * m0, waves };
+  return { D, near: Math.max(GREEN_NEAR, 20 - D - GREEN_FAR), hx, hy: D, gx0: Math.cos(a0) * m0 * SLOPE_K, gy0: Math.sin(a0) * m0 * SLOPE_K, waves };
 }
 function grade(g, x, y) {
   let gx = g.gx0, gy = g.gy0;
@@ -1318,7 +1332,8 @@ function simulate(g, aimDeg, power) {
   const v0 = 0.12 * power;
   let x = 0, y = 0, vx = v0 * Math.sin(th), vy = v0 * Math.cos(th), t = 0, step = 0;
   const path = [0, 0];
-  let dmin = 1e9, sunk = false;
+  let dmin = 1e9, sunk = false, fell = false, pole = false, poleT = 0;
+  const sb = Math.sin(base), cb = Math.cos(base);
   while (t < 20) {
     const [gx, gy] = grade(g, x, y);
     const ax = -G_ACC * gx, ay = -G_ACC * gy;
@@ -1332,21 +1347,299 @@ function simulate(g, aimDeg, power) {
     const d = Math.hypot(x - g.hx, y - g.hy);
     if (d < dmin) dmin = d;
     const s2 = Math.hypot(vx, vy);
-    if (d < HOLE_R && s2 < 5.5 - 16 * d) { sunk = true; x = g.hx; y = g.hy; path.push(r2(x), r2(y)); break; }
+    if (d < HOLE_R && s2 < CAPTURE_V * Math.sqrt(Math.max(0, 1 - (d / HOLE_R) ** 2))) { sunk = true; x = g.hx; y = g.hy; path.push(r2(x), r2(y)); break; }
+    if (!sunk && d < POLE_R && (vx * (x - g.hx) + vy * (y - g.hy)) < 0) {
+      let nx = (x - g.hx) / (d || 1), ny = (y - g.hy) / (d || 1);
+      if (d < 1e-4) { const sv = Math.hypot(vx, vy) || 1; nx = -vx / sv; ny = -vy / sv; }
+      const vn = vx * nx + vy * ny;
+      vx -= (1 + POLE_E) * vn * nx; vy -= (1 + POLE_E) * vn * ny;
+      x = g.hx + nx * POLE_R; y = g.hy + ny * POLE_R;
+      if (!pole) { pole = true; poleT = step * DT; }
+      path.push(r2(x), r2(y));
+    }
+    const eu = x * cb - y * sb, ev = x * sb + y * cb;
+    if (Math.abs(eu) > GREEN_W || ev > g.D + GREEN_FAR || ev < -g.near) { fell = true; path.push(r2(x), r2(y)); break; }
     if (step % 12 === 0) path.push(r2(x), r2(y));
     if (Math.abs(x) > 45 || y > 70 || y < -30) break;
   }
-  if (!sunk) path.push(r2(x), r2(y));
+  if (!sunk && !fell) path.push(r2(x), r2(y));
   const dist = Math.hypot(x - g.hx, y - g.hy);
   let out, p;
   if (sunk) { out = 'sunk'; p = 100; }
-  else if (dmin < 0.26) { out = 'lip'; p = 75; }
+  else if (fell) { out = 'fell'; p = 0; }
+  else if (dmin < HOLE_R + 0.06) { out = 'lip'; p = 75; }
   else if (dist <= 1) { out = 'inch'; p = 50; }
   else if (dist <= 4) { out = 'near'; p = 25; }
   else { out = 'miss'; p = 0; }
-  return { path, t: (path.length / 2 - 1) * SAMPLE, out, p, d: r2(dist) };
+  return { path, t: (path.length / 2 - 1) * SAMPLE, out, p, d: r2(dist), fell, pole, poleT: r2(poleT) };
 }
 function flatFeet(power) { const v = 0.12 * power; return v * v / (2 * FRIC); }
+
+// ---- Birdie Dive: tilted putting view. Draws the green as real terrain from behind the ball, with slope arrows that glide inside their own grid squares. ----
+// One camera shape for every green (height and distance scale with the green's length), so the perspective always looks the same.
+function makeView(cv, g, seed) {
+  const ctx = cv.getContext('2d');
+  const INK = '#1F3A2B', W = GREEN_W, SP = 1.8, STEP = SP / 3, NC = Math.round(2 * W / STEP), ZL = 0.03;
+  const REDUCE = !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+  const TILT = 72 * Math.PI / 180, RELIEF = 1.25;
+  const vmin = -g.near, vmax = g.D + GREEN_FAR, b = Math.atan2(g.hx, g.hy);
+  const kind = Math.floor(mulberry32(seed ^ 0x5bd1e995)() * 3);
+  let w = 0, h = 0, cam = null, scene = null, banner = null, celeb = 0;
+  const mix = (a, c, t) => a.map((v, i) => Math.round(v + (c[i] - v) * t));
+
+  // terrain: the same height function the physics slopes come from
+  const hgt = (x, y) => { let z = g.gx0 * x + g.gy0 * y; for (const wv of g.waves) z += wv.amp / Math.hypot(wv.kx, wv.ky) * Math.sin(wv.kx * x + wv.ky * y + wv.psi); return z; };
+  const hz0 = hgt(0, 0);
+  const uv2w = (u, v) => [u * Math.cos(b) + v * Math.sin(b), -u * Math.sin(b) + v * Math.cos(b)];
+  const toUV = (x, y) => [x * Math.cos(b) - y * Math.sin(b), x * Math.sin(b) + y * Math.cos(b)];
+  const Z = (u, v) => { const [x, y] = uv2w(u, v); return RELIEF * (hgt(x, y) - hz0); };
+  const cells = [], NRA = Math.ceil((vmax - vmin) / SP), colsA = Math.round(2 * W / SP), shade = [];
+  for (let j = 0; j < NRA; j++) for (let i = 0; i < colsA; i++) {
+    const u = -W + SP * (i + 0.5), v = vmin + SP * (j + 0.5);
+    if (Math.hypot(u, v) < 1.3 || Math.hypot(u, v - g.D) < 1.1) continue;
+    const [wx, wy] = uv2w(u, v), [gx, gy] = grade(g, wx, wy), m = Math.hypot(gx, gy);
+    const du = -(gx * Math.cos(b) - gy * Math.sin(b)), dv = -(gx * Math.sin(b) + gy * Math.cos(b));
+    cells.push({ u, v, m, t: clamp(m / (0.05 * SLOPE_K), 0, 1), du: m ? du / m : 0, dv: m ? dv / m : 0, off: (i * 0.381 + j * 0.617) % 1, j });
+  }
+  const byRow = []; for (let j = 0; j < NRA; j++) byRow.push([]);
+  cells.forEach(c => byRow[c.j].push(c));
+  for (let r = 0; r < NRA * 3; r++) for (let i = 0; i < NC; i++) {
+    const u = -W + STEP * (i + 0.5), v = vmin + STEP * (r + 0.5), [x, y] = uv2w(u, v), [gx, gy] = grade(g, x, y);
+    const gu = gx * Math.cos(b) - gy * Math.sin(b), gv = gx * Math.sin(b) + gy * Math.cos(b);
+    let nx = -RELIEF * gu, ny = -RELIEF * gv, nz = 1; const nl = Math.hypot(nx, ny, nz); nx /= nl; ny /= nl; nz /= nl;
+    shade.push(clamp(0.5 + 2.4 * ((nx * 0.55 + ny * 0.25 + nz * 0.8) - 0.8), 0, 1));
+  }
+
+  function P(u, v, z) {
+    z = z || 0;
+    const rv = v + cam.cb, c = Math.cos(cam.phi), s = Math.sin(cam.phi), d = rv * c + (cam.H - z) * s, yc = rv * s + (z - cam.H) * c, k = cam.F / d;
+    return { x: cam.cx + u * k, y: cam.cy - yc * k, k };
+  }
+  function fit() {
+    const L = g.D + GREEN_FAR + g.near;
+    cam = { phi: TILT, H: Math.max(1.5, 0.18 * L), cb: 0.2 * L, F: 1, cx: w / 2, cy: 0 };
+    const ph = P(0, g.D, Z(0, g.D)), pb = P(0, 0, 0), ah = -ph.y, ab = -pb.y;
+    cam.F = 0.52 * h / (ah - ab); cam.cy = 0.32 * h + cam.F * ah; scene = null;
+  }
+  function size() {
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    w = cv.clientWidth; h = cv.clientHeight; if (!w || !h) return false;
+    cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr); ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    fit(); return true;
+  }
+  function ground(sx, sy) { // screen point -> (u, v) feet from the ball, along the hole line
+    const k = (cam.cy - sy) / cam.F, c = Math.cos(cam.phi), s = Math.sin(cam.phi);
+    const rv = cam.H * (c + k * s) / (s - k * c), d = rv * c + cam.H * s;
+    return { u: (sx - cam.cx) * d / cam.F, v: rv - cam.cb };
+  }
+  // pointer -> pull info: where the finger is, how far it is from the ball in pixels, and the aim angle it implies
+  function touch(e) {
+    const r = cv.getBoundingClientRect(), sx = (e.clientX - r.left) * w / r.width, sy = (e.clientY - r.top) * h / r.height;
+    const p = ground(sx, sy), o = P(0, 0, 0.1);
+    return { x: sx, y: sy, px: Math.hypot(sx - o.x, sy - o.y), aim: Math.atan2(-p.u, Math.max(-p.v, 0) + 1.2) * 180 / Math.PI };
+  }
+
+  // ---- backdrop scenery, drawn once per layout ----
+  function makeScene() {
+    const dpr = Math.min(window.devicePixelRatio || 1, 2), oc = document.createElement('canvas');
+    oc.width = Math.round(w * dpr); oc.height = Math.round(h * dpr);
+    const c = oc.getContext('2d'); c.setTransform(dpr, 0, 0, dpr, 0, 0);
+    const rng = mulberry32(seed ^ 0xA5A5A5), R = (a, z) => a + (z - a) * rng();
+    const H0 = clamp(P(0, vmax, Z(0, vmax)).y, 70, h * 0.6);
+    const lin = (y0, y1, a, z) => { const q = c.createLinearGradient(0, y0, 0, y1); q.addColorStop(0, a); q.addColorStop(1, z); return q; };
+    const glow = (x, y, r, col) => { const q = c.createRadialGradient(x, y, 0, x, y, r); q.addColorStop(0, col); q.addColorStop(1, 'rgba(255,255,255,0)'); c.fillStyle = q; c.fillRect(x - r, y - r, 2 * r, 2 * r); };
+    const cloud = (x, y, sc, a) => { c.fillStyle = `rgba(255,255,255,${a})`; [[0, 0, 26, 9], [-18, 3, 18, 7], [20, 2, 20, 8], [4, -6, 15, 8]].forEach(p => { c.beginPath(); c.ellipse(x + p[0] * sc, y + p[1] * sc, p[2] * sc, p[3] * sc, 0, 0, 7); c.fill(); }); };
+    const tree = (x, base, tw, th, col) => { c.fillStyle = col; for (let i = 0; i < 3; i++) { const y0 = base - th * (0.32 * i), ww = tw * (1 - i * 0.22); c.beginPath(); c.moveTo(x, base - th * (0.32 * i + 0.55)); c.lineTo(x + ww / 2, y0); c.lineTo(x - ww / 2, y0); c.closePath(); c.fill(); } };
+    if (kind === 0) { // cliffside over the sea
+      c.fillStyle = '#5B9A4C'; c.fillRect(0, 0, w, h);
+      c.fillStyle = lin(0, H0, '#69BDEB', '#E3F5FF'); c.fillRect(0, 0, w, H0 + 2);
+      glow(w * R(0.25, 0.75), H0 * 0.3, H0 * 0.55, 'rgba(255,248,200,0.95)');
+      c.fillStyle = '#FFF6D0'; c.beginPath(); c.arc(w * R(0.3, 0.7), H0 * 0.3, H0 * 0.08, 0, 7); c.fill();
+      cloud(w * R(0.1, 0.4), H0 * R(0.12, 0.3), 1.2, 0.9); cloud(w * R(0.55, 0.9), H0 * R(0.2, 0.4), 0.9, 0.85);
+      const sy = H0 * 0.56; c.fillStyle = lin(sy, H0, '#3FA6DA', '#1D74B0'); c.fillRect(0, sy, w, H0 - sy + 2);
+      c.fillStyle = '#7FA9BB'; c.beginPath(); c.ellipse(w * R(0.3, 0.7), sy + 1, w * 0.16, H0 * 0.07, 0, Math.PI, 0); c.fill();
+      c.strokeStyle = 'rgba(255,255,255,0.55)'; c.lineWidth = 2; c.lineCap = 'round';
+      for (let i = 0; i < 26; i++) { const x = R(0, w), y = R(sy + 6, H0 - 4), l = R(8, 22) * (0.5 + (y - sy) / (H0 - sy)); c.beginPath(); c.moveTo(x, y); c.lineTo(x + l, y); c.stroke(); }
+      [[0, 1], [1, -1]].forEach(([side, dir]) => {
+        const x0 = side ? w : 0, wd = w * R(0.13, 0.22), top = H0 * R(0.22, 0.45);
+        c.fillStyle = '#C69463'; c.beginPath(); c.moveTo(x0, top); c.lineTo(x0 + dir * wd * 0.8, top + H0 * 0.08); c.lineTo(x0 + dir * wd, H0 * 0.72); c.lineTo(x0 + dir * wd * 0.8, H0 + 2); c.lineTo(x0, H0 + 2); c.closePath(); c.fill();
+        c.strokeStyle = 'rgba(110,70,40,0.5)'; c.lineWidth = 2; for (let i = 1; i < 5; i++) { const y = top + (H0 - top) * i / 5; c.beginPath(); c.moveTo(x0, y); c.lineTo(x0 + dir * wd * (0.7 + 0.2 * rng()), y + 3); c.stroke(); }
+        c.fillStyle = '#69AE55'; c.beginPath(); c.moveTo(x0, top - 7); c.lineTo(x0 + dir * wd * 0.85, top + H0 * 0.04); c.lineTo(x0 + dir * wd * 0.8, top + H0 * 0.1); c.lineTo(x0, top + 6); c.closePath(); c.fill();
+      });
+    } else if (kind === 1) { // pine forest, morning light
+      c.fillStyle = '#2F6E49'; c.fillRect(0, 0, w, h);
+      c.fillStyle = lin(0, H0, '#B9E3C6', '#FFF3C7'); c.fillRect(0, 0, w, H0 + 2);
+      glow(w * R(0.55, 0.85), H0 * 0.5, H0 * 0.9, 'rgba(255,238,160,0.85)');
+      c.fillStyle = 'rgba(255,255,230,0.18)';
+      for (let i = 0; i < 3; i++) { const x = w * R(0.1, 0.9); c.beginPath(); c.moveTo(x, 0); c.lineTo(x + 18, 0); c.lineTo(x + 60 + 40 * i, H0); c.lineTo(x - 20 + 40 * i, H0); c.closePath(); c.fill(); }
+      [['#92CBA0', 0.62, 0.9, 20], ['#52A06E', 0.5, 0.8, 24], ['#2B6B47', 0.36, 0.68, 30]].forEach(([col, a, z, st], li) => {
+        for (let x = -10; x < w + 20; x += R(st * 0.6, st)) tree(x, H0 + 6 + li * 3, R(18, 28) * (1 + li * 0.15), H0 * R(a, z), col);
+        if (li === 0) { c.fillStyle = lin(H0 * 0.5, H0, 'rgba(255,255,255,0)', 'rgba(255,255,240,0.55)'); c.fillRect(0, H0 * 0.5, w, H0 * 0.5 + 2); }
+      });
+    } else { // desert mesas
+      c.fillStyle = '#E8BF80'; c.fillRect(0, 0, w, h);
+      c.fillStyle = lin(0, H0, '#FFC384', '#FFF0D6'); c.fillRect(0, 0, w, H0 + 2);
+      const sx = w * R(0.25, 0.75); glow(sx, H0 * 0.42, H0 * 0.7, 'rgba(255,236,170,0.95)');
+      c.fillStyle = '#FFE9A8'; c.beginPath(); c.arc(sx, H0 * 0.42, H0 * 0.13, 0, 7); c.fill();
+      const mesa = (cx, wd, ht, col) => { c.fillStyle = col; c.beginPath(); c.moveTo(cx - wd / 2 - wd * 0.12, H0 + 3); c.lineTo(cx - wd / 2, H0 - ht); c.lineTo(cx + wd / 2, H0 - ht); c.lineTo(cx + wd / 2 + wd * 0.12, H0 + 3); c.closePath(); c.fill(); c.fillStyle = 'rgba(120,50,20,0.18)'; c.fillRect(cx - wd / 2 - wd * 0.05, H0 - ht * 0.45, wd * 1.1, 3); };
+      for (let i = 0; i < 4; i++) mesa(w * R(0.05, 0.95), w * R(0.14, 0.26), H0 * R(0.22, 0.4), '#EDAE8C');
+      for (let i = 0; i < 3; i++) mesa(w * R(0.0, 1.0), w * R(0.16, 0.3), H0 * R(0.14, 0.3), '#D4795A');
+      c.fillStyle = '#F2C77E'; c.beginPath(); c.moveTo(0, H0 + 3); for (let x = 0; x <= w; x += 6) c.lineTo(x, H0 * 0.86 - Math.sin(x / w * 5 + R(0, 0.2)) * H0 * 0.06); c.lineTo(w, H0 + 3); c.closePath(); c.fill();
+      c.strokeStyle = '#3E7B47'; c.lineCap = 'round';
+      [w * R(0.05, 0.16), w * R(0.84, 0.95)].forEach(x => { const ht = H0 * R(0.42, 0.55), y = H0 + 2; c.lineWidth = 9; c.beginPath(); c.moveTo(x, y); c.lineTo(x, y - ht); c.stroke(); c.lineWidth = 6; c.beginPath(); c.moveTo(x, y - ht * 0.4); c.lineTo(x - 15, y - ht * 0.4); c.lineTo(x - 15, y - ht * 0.68); c.moveTo(x, y - ht * 0.55); c.lineTo(x + 14, y - ht * 0.55); c.lineTo(x + 14, y - ht * 0.8); c.stroke(); });
+    }
+    const birds = [], nb = kind === 0 ? 4 : 3;
+    for (let i = 0; i < nb; i++) birds.push({ x: R(0, w), y: H0 * R(0.1, 0.42), s: R(0.8, 1.25), ph: R(0, 6.28), sp: R(0, 1.5) });
+    return { img: oc, birds, col: ['#2E4452', '#2A4A3A', '#5A3A2A'][kind] };
+  }
+
+  // ---- small drawing helpers ----
+  function poly(pts, fill, stroke, lw) {
+    ctx.beginPath(); pts.forEach((p, i) => i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y)); ctx.closePath();
+    if (fill) { ctx.fillStyle = fill; ctx.fill(); } if (stroke) { ctx.strokeStyle = stroke; ctx.lineWidth = lw; ctx.lineJoin = 'round'; ctx.stroke(); }
+  }
+  function line(a, c, col, lw) { ctx.strokeStyle = col; ctx.lineWidth = lw; ctx.lineCap = 'round'; ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(c.x, c.y); ctx.stroke(); }
+  function arrow(a, c, col, lw, hs) {
+    const dx = c.x - a.x, dy = c.y - a.y, L = Math.hypot(dx, dy) || 1, ex = dx / L, ey = dy / L, hh = Math.min(hs, L * 0.7), bx = c.x - ex * hh, by = c.y - ey * hh;
+    line(a, { x: bx, y: by }, col, lw);
+    ctx.fillStyle = col; ctx.beginPath(); ctx.moveTo(c.x, c.y); ctx.lineTo(bx - ey * hh * 0.62, by + ex * hh * 0.62); ctx.lineTo(bx + ey * hh * 0.62, by - ex * hh * 0.62); ctx.closePath(); ctx.fill();
+  }
+  function ballAt(x, y, o) { // o: {col, a, s, r}
+    const [u, v] = toUV(x, y), z = Z(u, v), base = P(u, v, z), top = P(u, v, z + 0.09), rad = Math.max(4, 0.13 * base.k) * (o.r || 1) * (o.s == null ? 1 : o.s), al = o.a == null ? 1 : o.a;
+    if (al <= 0) return;
+    ctx.globalAlpha = al;
+    if (al >= 1) { ctx.fillStyle = 'rgba(16,38,26,0.35)'; ctx.beginPath(); ctx.ellipse(base.x + rad * 0.1, base.y - rad * 0.2, rad * 1.05, rad * 0.55, 0, 0, 7); ctx.fill(); }
+    ctx.fillStyle = o.col || '#FFFFFF'; ctx.strokeStyle = INK; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(top.x, top.y, rad, 0, 7); ctx.fill(); ctx.stroke();
+    ctx.globalAlpha = 1;
+  }
+  function trail(path, tt, col, a, lw) {
+    const n = Math.min(path.length / 2 - 1, Math.floor(tt / SAMPLE));
+    ctx.strokeStyle = col; ctx.globalAlpha = a; ctx.lineWidth = lw; ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.beginPath();
+    for (let i = 0; i <= n; i++) { const [u, v] = toUV(path[2 * i], path[2 * i + 1]), p = P(u, v, Z(u, v) + ZL); i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y); }
+    const f = tt / SAMPLE, i = Math.min(path.length / 2 - 1, Math.floor(f)), j = Math.min(path.length / 2 - 1, i + 1), k = clamp(f - i, 0, 1);
+    const ex = path[2 * i] + (path[2 * j] - path[2 * i]) * k, ey = path[2 * i + 1] + (path[2 * j + 1] - path[2 * i + 1]) * k, [eu, ev] = toUV(ex, ey), ep = P(eu, ev, Z(eu, ev) + ZL);
+    ctx.lineTo(ep.x, ep.y); ctx.stroke(); ctx.globalAlpha = 1;
+  }
+
+  // ---- one frame. o: { aimUI, aim, power, pull:{x,y,px,moved}|null, balls:[{x,y,col,a,s,r}], trails:[{path,tt,col,a,lw}], dashed:[path], shake } ----
+  function draw(now, o) {
+    if (!w || !cam) return;
+    o = o || {};
+    const T = REDUCE ? 0.4 : now / 1000;
+    ctx.clearRect(0, 0, w, h);
+    if (!scene) scene = makeScene();
+    ctx.drawImage(scene.img, 0, 0, w, h);
+    for (const bd of scene.birds) {
+      const x = ((bd.x + T * 9 * bd.s) % (w + 60)) - 30, y = bd.y + Math.sin(T * 0.9 + bd.ph) * 3, A = Math.sin(T * (5.5 + bd.sp) + bd.ph), z = bd.s;
+      ctx.strokeStyle = scene.col; ctx.lineWidth = 2 * z; ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.beginPath();
+      ctx.moveTo(x - 10 * z, y - 7 * z * A); ctx.quadraticCurveTo(x - 5 * z, y - 5 * z * A - 3 * z, x, y); ctx.quadraticCurveTo(x + 5 * z, y - 5 * z * A - 3 * z, x + 10 * z, y - 7 * z * A); ctx.stroke();
+    }
+    // terrain and arrows, far rows first so near hills cover far ground
+    for (let j = NRA - 1; j >= 0; j--) {
+      for (let k = 2; k >= 0; k--) {
+        const r = j * 3 + k, v0 = vmin + STEP * r, v1 = Math.min(v0 + STEP, vmax);
+        if (v0 >= vmax - 0.001) continue;
+        for (let i = 0; i < NC; i++) {
+          const u0 = -W + STEP * i, u1 = u0 + STEP, sh = shade[r * NC + i], base = ((r >> 1) % 2 ? [108, 194, 122] : [98, 184, 112]), f = 0.7 + 0.6 * sh;
+          const col = `rgb(${Math.min(255, base[0] * f) | 0},${Math.min(255, base[1] * f) | 0},${Math.min(255, base[2] * f) | 0})`;
+          poly([P(u0, v0, Z(u0, v0)), P(u1, v0, Z(u1, v0)), P(u1, v1, Z(u1, v1)), P(u0, v1, Z(u0, v1))], col, col, 1);
+        }
+      }
+      for (const c of byRow[j]) {
+        const cp = P(c.u, c.v, Z(c.u, c.v) + ZL);
+        if (c.m < 0.002) { ctx.fillStyle = 'rgba(255,255,255,0.6)'; ctx.beginPath(); ctx.arc(cp.x, cp.y, Math.max(1.5, 0.07 * cp.k), 0, 7); ctx.fill(); continue; }
+        const t = c.t, len = SP * (0.3 + 0.2 * t), e = (SP / 2) / Math.max(Math.abs(c.du), Math.abs(c.dv)), range = e - len / 2 - 0.05;
+        const ph = (T * (0.25 + 1.5 * t) + c.off) % 1, s = (ph * 2 - 1) * range, al = Math.pow(Math.sin(Math.PI * ph), 0.55) * (0.8 + 0.2 * t);
+        const col = mix([246, 255, 244], [14, 44, 28], Math.pow(t, 0.8));
+        const au = c.u + c.du * (s - len / 2), av = c.v + c.dv * (s - len / 2), bu = c.u + c.du * (s + len / 2), bv = c.v + c.dv * (s + len / 2);
+        arrow(P(au, av, Z(au, av) + ZL), P(bu, bv, Z(bu, bv) + ZL), `rgba(${col[0]},${col[1]},${col[2]},${al.toFixed(2)})`, Math.max(1.4, (0.06 + 0.07 * t) * cp.k), Math.max(4, (0.24 + 0.1 * t) * cp.k));
+      }
+    }
+    // edge of the green
+    const edge = [];
+    for (let v = vmin; v <= vmax; v += STEP) edge.push(P(-W, v, Z(-W, v)));
+    for (let u = -W; u <= W; u += STEP) edge.push(P(u, vmax, Z(u, vmax)));
+    for (let v = vmax; v >= vmin; v -= STEP) edge.push(P(W, v, Z(W, v)));
+    ctx.strokeStyle = INK; ctx.lineWidth = 3; ctx.lineJoin = 'round'; ctx.beginPath(); edge.forEach((p, i) => i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y)); ctx.stroke();
+    // hole and fluttering flag
+    const hzv = Z(0, g.D), hc = P(0, g.D, hzv), ring = [], shk = o.shake || 0;
+    for (let a = 0; a < 24; a++) ring.push(P(Math.cos(a / 24 * 6.2832) * 0.26, g.D + Math.sin(a / 24 * 6.2832) * 0.26, hzv));
+    poly(ring, '#10261A', '#EAF6E4', 2);
+    const poleTop = P(Math.sin(T * 38) * 0.1 * shk, g.D, hzv + 2.6); line(hc, poleTop, '#FFFFFF', 2.5); line(hc, poleTop, INK, 1);
+    const fl = [], N = 8, wob = REDUCE ? 0 : 1 + 3.5 * shk;
+    for (let k = 0; k <= N; k++) { const f = k / N; fl.push(P(1.1 * f, g.D + wob * Math.sin(T * 2.6 - f * 4.2) * 0.22 * f, hzv + 2.6 - 0.3 * f + wob * Math.sin(T * 3.4 - f * 5) * 0.1 * f)); }
+    for (let k = N; k >= 0; k--) { const f = k / N; fl.push(P(1.1 * f, g.D + wob * Math.sin(T * 2.6 - f * 4.2) * 0.22 * f, hzv + 1.9 + 0.3 * f + wob * Math.sin(T * 3.4 - f * 5) * 0.1 * f)); }
+    poly(fl, '#FF6B6B', INK, 1.5);
+    ctx.fillStyle = INK; ctx.font = '800 13px Nunito, sans-serif'; ctx.textAlign = 'left';
+    ctx.fillText(Math.round(g.D) + ' ft', hc.x + 0.7 * hc.k + 4, hc.y + 5);
+    // faint dotted trails (a previous shot), then live trails
+    (o.dashed || []).forEach(path => { ctx.strokeStyle = 'rgba(255,255,255,0.5)'; ctx.lineWidth = 2.5; ctx.setLineDash([3, 6]); ctx.beginPath(); for (let q = 0; q < path.length / 2; q++) { const [uu, vv] = toUV(path[2 * q], path[2 * q + 1]), pp = P(uu, vv, Z(uu, vv) + ZL); q ? ctx.lineTo(pp.x, pp.y) : ctx.moveTo(pp.x, pp.y); } ctx.stroke(); ctx.setLineDash([]); });
+    (o.trails || []).forEach(t => trail(t.path, t.tt, t.col, t.a, t.lw));
+    // aim marker, pull icon
+    const pw = o.power == null ? 50 : o.power, pc = mix([255, 255, 255], [255, 80, 60], pw / 100), pcs = `rgb(${pc[0]},${pc[1]},${pc[2]})`;
+    if (o.aimUI) {
+      const th = (o.aim || 0) * Math.PI / 180, au = Math.sin(th) * 3, av = Math.cos(th) * 3, su = Math.sin(th) * 0.5, sv = Math.cos(th) * 0.5;
+      const tip = P(au, av, Z(au, av) + ZL), st = P(su, sv, Z(su, sv) + ZL), pull = o.pull, org = P(0, 0, 0.1), idle = P(0, -1.5, Z(0, -1.5)), ic = pull || { x: idle.x, y: Math.min(idle.y, h - 26) };
+      if (pull) { ctx.setLineDash([2, 7]); line(org, pull, INK, 5 + pw / 25); line(org, pull, pcs, 2.5 + pw / 25); ctx.setLineDash([]); }
+      arrow(st, tip, INK, 7, 15); arrow(st, tip, '#FFFFFF', 3.5, 12);
+      ctx.strokeStyle = 'rgba(255,255,255,0.9)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(tip.x, tip.y, 18, 0, 7); ctx.stroke();
+      const pr = pull ? 0 : Math.sin(T * 3) * 1.5;
+      ctx.fillStyle = pull ? pcs : 'rgba(255,255,255,0.55)'; ctx.strokeStyle = INK; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.arc(ic.x, ic.y, 15 + pr, 0, 7); ctx.fill(); ctx.stroke();
+      ctx.lineWidth = 2; ctx.lineCap = 'round'; ctx.beginPath(); ctx.moveTo(ic.x - 8, ic.y); ctx.lineTo(ic.x + 8, ic.y); ctx.moveTo(ic.x, ic.y - 8); ctx.lineTo(ic.x, ic.y + 8); ctx.stroke();
+      ctx.fillStyle = INK; ctx.beginPath(); ctx.arc(ic.x, ic.y, 2.4, 0, 7); ctx.fill();
+      if (!pull) { ctx.font = '800 11px Nunito, sans-serif'; ctx.textAlign = 'center'; ctx.fillText('PULL TO AIM', ic.x, Math.min(ic.y + 31, h - 6)); ctx.textAlign = 'left'; }
+    }
+    // balls
+    (o.balls || []).forEach(bl => ballAt(bl.x, bl.y, bl));
+    // celebration
+    if (celeb) {
+      const age = (now - celeb) / 1000;
+      if (age < 1.6) {
+        const cols = ['#FFD23F', '#FF8A5B', '#5BC8A8', '#6FA8FF', '#FFFFFF', '#FF6B6B'];
+        for (let q = 0; q < 34; q++) {
+          const a = q * 2.399 + 0.5, sp = 90 + (q * 37 % 110), x = hc.x + Math.cos(a) * sp * age, y = hc.y - 20 + Math.sin(a) * sp * 0.6 * age - 150 * age + 360 * age * age;
+          ctx.save(); ctx.translate(x, y); ctx.rotate(age * 6 + q); ctx.globalAlpha = clamp(1.6 - age, 0, 1); ctx.fillStyle = cols[q % 6]; ctx.fillRect(-4, -2.5, 8, 5); ctx.restore();
+        }
+      } else celeb = 0;
+    }
+    // result splash beside the flag
+    if (banner) {
+      const age = (now - banner.t0) / 1000;
+      if (age > 2.5) banner = null;
+      else {
+        const pop = age < 0.25 ? 0.6 + 0.5 * Math.sin(age / 0.25 * Math.PI / 2) : age < 0.4 ? 1.1 - 0.1 * (age - 0.25) / 0.15 : 1, a = age < 1.5 ? 1 : clamp(1 - (age - 1.5) / 1, 0, 1), rise = age > 1.5 ? (age - 1.5) * 14 : 0;
+        const fs0 = banner.win ? 26 : 20, lh = fs0 * 1.08;
+        const tw = Math.max(...banner.lines.map(q => { ctx.font = `800 ${fs0}px "Baloo 2", Nunito, sans-serif`; return ctx.measureText(q).width; }));
+        const fp = P(1.4, g.D, hzv + 2.3), rightSide = fp.x + 8 + tw < w - 8, bx2 = rightSide ? fp.x + 8 : P(-0.4, g.D, hzv + 2.3).x - 8, by2 = Math.max(40, fp.y + 8) - rise;
+        ctx.save(); ctx.globalAlpha = a; ctx.translate(bx2, by2); ctx.scale(pop, pop); ctx.textAlign = rightSide ? 'left' : 'right'; ctx.lineJoin = 'round';
+        banner.lines.forEach((q, i) => { const pts = /^[+]\d+$/.test(q); ctx.font = `800 ${pts ? fs0 * 1.25 : fs0}px "Baloo 2", Nunito, sans-serif`; ctx.lineWidth = 6; ctx.strokeStyle = INK; ctx.strokeText(q, 0, i * lh * 1.1); ctx.fillStyle = pts ? '#FFD23F' : '#FFFFFF'; ctx.fillText(q, 0, i * lh * 1.1); });
+        ctx.restore();
+      }
+    }
+    // power readout, pinned top-right so a thumb never covers it
+    if (o.aimUI) {
+      const bw = 112, bh = 50, bx = w - bw - 12, by = 12;
+      ctx.fillStyle = 'rgba(255,255,255,0.92)'; ctx.strokeStyle = INK; ctx.lineWidth = 2.5; ctx.beginPath();
+      ctx.moveTo(bx + 12, by); ctx.arcTo(bx + bw, by, bx + bw, by + bh, 12); ctx.arcTo(bx + bw, by + bh, bx, by + bh, 12); ctx.arcTo(bx, by + bh, bx, by, 12); ctx.arcTo(bx, by, bx + bw, by, 12); ctx.closePath(); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = INK; ctx.textAlign = 'left'; ctx.font = '800 10px Nunito, sans-serif'; ctx.fillText('POWER', bx + 10, by + 15);
+      ctx.font = '800 20px "Baloo 2", Nunito, sans-serif'; ctx.textAlign = 'right'; ctx.fillText(Math.round(pw) + '%', bx + bw - 10, by + 21);
+      ctx.fillStyle = '#E3EFDD'; ctx.fillRect(bx + 10, by + 31, bw - 20, 9);
+      ctx.fillStyle = pcs; ctx.fillRect(bx + 10, by + 31, (bw - 20) * pw / 100, 9);
+      ctx.strokeStyle = INK; ctx.lineWidth = 1.5; ctx.strokeRect(bx + 10, by + 31, bw - 20, 9); ctx.textAlign = 'left';
+      if (o.pull && o.pull.px >= 22 && o.pull.moved >= 10) { ctx.fillStyle = INK; ctx.font = '800 11px Nunito, sans-serif'; ctx.textAlign = 'right'; ctx.fillText('release to set', bx + bw, by + bh + 16); ctx.textAlign = 'left'; }
+    }
+  }
+
+  return {
+    kind, size, draw, touch, ground, toUV,
+    ball: () => P(0, 0, 0.1),
+    splash(lines, win, now) { banner = { lines, win, t0: now }; if (win) celeb = now; },
+    resultLines(m) { // from a stored putt result
+      const base = { sunk: 'SUNK!', lip: 'Lipped out.', inch: 'Inside a foot.', near: 'Within 4 ft.', miss: 'Missed.', fell: kind === 0 ? 'Over the cliff!' : 'Off the green.' }[m.out] || 'Missed.';
+      return [].concat(m.pole ? ['Off the flagstick!'] : [], [base, '+' + (m.p || 0)]);
+    }
+  };
+}
 
 // ---- Birdie Dive: multiplayer client. The host's phone runs the clock and scores; everyone else renders from shared state. ----
 (async function () {
@@ -1536,7 +1829,7 @@ function flatFeet(power) { const v = 0.12 * power; return v * v / (2 * FRIC); }
           const d = putts[u] || {};
           const aim = clamp(Number.isFinite(+d.aim) ? +d.aim : 0, -25, 25), power = clamp(d.power == null || !Number.isFinite(+d.power) ? 50 : +d.power, 0, 100);
           const s = simulate(gr, aim, power);
-          pt[u] = { aim, power, path: s.path, out: s.out, d: s.d, p: s.p, t: s.t, none: !putts[u] };
+          pt[u] = { aim, power, path: s.path, out: s.out, d: s.d, p: s.p, t: s.t, none: !putts[u], fell: !!s.fell, pole: !!s.pole, poleT: s.poleT || 0 };
           maxT = Math.max(maxT, s.t);
         }
         const rs = await g.collection('rounds').doc('r' + r).get();
@@ -1871,78 +2164,6 @@ function flatFeet(power) { const v = 0.12 * power; return v * v / (2 * FRIC); }
     };
   }
 
-  // ---------- green drawing ----------
-  function fit(g, w, hgt) {
-    const x0 = Math.min(0, g.hx) - 4.2, x1 = Math.max(0, g.hx) + 4.2, y0 = -3.2, y1 = g.hy + 3.8;
-    const s = Math.min(w / (x1 - x0), hgt / (y1 - y0));
-    const ox = (w - (x1 - x0) * s) / 2, oy = (hgt - (y1 - y0) * s) / 2;
-    return { s, x0, x1, y0, y1, X: x => ox + (x - x0) * s, Y: y => hgt - (oy + (y - y0) * s) };
-  }
-  function setupCanvas(cv) {
-    const w = cv.clientWidth, hgt = cv.clientHeight;
-    if (!w || !hgt) return null;
-    const dpr = Math.min(window.devicePixelRatio || 1, 2);
-    cv.width = Math.round(w * dpr); cv.height = Math.round(hgt * dpr);
-    const ctx = cv.getContext('2d');
-    if (!ctx) return null;
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    return { ctx, w, h: hgt };
-  }
-  function drawGreen(c, g, xf, opt) {
-    const { ctx, w, h: hgt } = c;
-    ctx.clearRect(0, 0, w, hgt);
-    ctx.fillStyle = '#1B5E3C'; ctx.fillRect(0, 0, w, hgt);
-    // mowing bands
-    for (let y = Math.floor(xf.y0 / 3) * 3, i = 0; y < xf.y1; y += 3, i++) {
-      if (i % 2) continue;
-      ctx.fillStyle = 'rgba(255,255,255,0.035)';
-      ctx.fillRect(0, xf.Y(y + 3), w, xf.Y(y) - xf.Y(y + 3));
-    }
-    // slope arrows (point downhill, longer = steeper)
-    const sp = 1.7;
-    ctx.lineWidth = 1.6; ctx.lineCap = 'round';
-    for (let gx = Math.ceil(xf.x0 / sp) * sp; gx < xf.x1; gx += sp) {
-      for (let gy = Math.ceil(xf.y0 / sp) * sp; gy < xf.y1; gy += sp) {
-        if (Math.hypot(gx - g.hx, gy - g.hy) < 0.9 || Math.hypot(gx, gy) < 0.9) continue;
-        const [sx, sy] = grade(g, gx, gy), m = Math.hypot(sx, sy), t = clamp(m / 0.05, 0, 1);
-        const px = xf.X(gx), py = xf.Y(gy);
-        if (m < 0.002) { ctx.fillStyle = 'rgba(234,242,236,0.3)'; ctx.beginPath(); ctx.arc(px, py, 1.4, 0, 7); ctx.fill(); continue; }
-        const dx = -sx / m, dy = sy / m; // downhill in screen space (y flipped)
-        const len = sp * xf.s * (0.22 + 0.6 * t), hs = Math.min(5.5, len * 0.45);
-        const col = t > 0.62 ? `rgba(242,212,146,${0.55 + 0.4 * t})` : `rgba(234,242,236,${0.35 + 0.5 * t})`;
-        ctx.strokeStyle = col; ctx.fillStyle = col;
-        const x1 = px - dx * len / 2, y1 = py - dy * len / 2, x2 = px + dx * len / 2, y2 = py + dy * len / 2;
-        ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
-        ctx.beginPath(); ctx.moveTo(x2 + dx * 1.5, y2 + dy * 1.5); ctx.lineTo(x2 - dx * hs - dy * hs * 0.65, y2 - dy * hs + dx * hs * 0.65); ctx.lineTo(x2 - dx * hs + dy * hs * 0.65, y2 - dy * hs - dx * hs * 0.65); ctx.closePath(); ctx.fill();
-      }
-    }
-    // hole and flag
-    const hx = xf.X(g.hx), hy = xf.Y(g.hy), hr = Math.max(6, HOLE_R * xf.s);
-    ctx.fillStyle = '#04100B'; ctx.beginPath(); ctx.arc(hx, hy, hr, 0, 7); ctx.fill();
-    ctx.strokeStyle = 'rgba(234,242,236,0.6)'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(hx, hy, hr, 0, 7); ctx.stroke();
-    ctx.strokeStyle = '#EAF2EC'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(hx, hy); ctx.lineTo(hx, hy - 40); ctx.stroke();
-    ctx.fillStyle = '#FF6B6B'; ctx.beginPath(); ctx.moveTo(hx, hy - 40); ctx.lineTo(hx + 17, hy - 34); ctx.lineTo(hx, hy - 28); ctx.closePath(); ctx.fill();
-    ctx.fillStyle = '#EAF2EC'; ctx.font = '500 12px "DM Mono", monospace'; ctx.textAlign = 'left';
-    ctx.fillText(Math.round(g.D) + ' ft', hx + hr + 5, hy + 4);
-    // start spot and aim marker
-    const bx = xf.X(0), by = xf.Y(0);
-    if (opt && opt.aim != null) {
-      const th = Math.atan2(g.hx, g.hy) + opt.aim * Math.PI / 180, L = 2.6 * xf.s;
-      const ex = bx + Math.sin(th) * L, ey = by - Math.cos(th) * L;
-      ctx.strokeStyle = 'rgba(255,255,255,0.85)'; ctx.lineWidth = 3; ctx.lineCap = 'round';
-      ctx.beginPath(); ctx.moveTo(bx + Math.sin(th) * 9, by - Math.cos(th) * 9); ctx.lineTo(ex, ey); ctx.stroke();
-      if (opt.handle) { ctx.fillStyle = 'rgba(255,255,255,0.18)'; ctx.beginPath(); ctx.arc(ex, ey, 17, 0, 7); ctx.fill(); ctx.strokeStyle = 'rgba(255,255,255,0.55)'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(ex, ey, 17, 0, 7); ctx.stroke(); ctx.lineWidth = 3; }
-      ctx.fillStyle = 'rgba(255,255,255,0.85)'; ctx.beginPath();
-      ctx.moveTo(ex + Math.sin(th) * 7, ey - Math.cos(th) * 7); ctx.lineTo(ex - Math.cos(th) * 5, ey - Math.sin(th) * 5); ctx.lineTo(ex + Math.cos(th) * 5, ey + Math.sin(th) * 5); ctx.closePath(); ctx.fill();
-    }
-  }
-  function drawBall(c, x, y, color) {
-    const { ctx } = c;
-    ctx.fillStyle = 'rgba(0,0,0,0.35)'; ctx.beginPath(); ctx.arc(x + 1.5, y + 2, 6, 0, 7); ctx.fill();
-    ctx.fillStyle = color || '#fff'; ctx.beginPath(); ctx.arc(x, y, 6, 0, 7); ctx.fill();
-    ctx.strokeStyle = 'rgba(0,0,0,0.35)'; ctx.lineWidth = 1; ctx.stroke();
-  }
-
   // ---------- sliders ----------
   function slider(o) {
     const track = h('div', { class: 'trk ' + (o.vertical ? 'v' : 'h'), role: 'slider', tabindex: '0', 'aria-label': o.label });
@@ -1952,7 +2173,7 @@ function flatFeet(power) { const v = 0.12 * power; return v * v / (2 * FRIC); }
     const set = (nv, emit) => {
       nv = Math.round(clamp(nv, o.min, o.max) / o.step) * o.step; nv = Math.round(nv * 100) / 100; v = nv;
       const f = (v - o.min) / (o.max - o.min);
-      if (o.vertical) { thumb.style.bottom = `calc(${f * 100}% - 15px)`; fill.style.height = f * 100 + '%'; } else thumb.style.left = `calc(${f * 100}% - 15px)`;
+      if (o.vertical) { thumb.style.bottom = `calc(${f * 100}% - 15px)`; fill.style.height = f * 100 + '%'; } else { thumb.style.left = `calc(${f * 100}% - 15px)`; fill.style.width = f * 100 + '%'; }
       track.setAttribute('aria-valuenow', v);
       if (emit && o.onInput) o.onInput(v);
     };
@@ -1971,87 +2192,101 @@ function flatFeet(power) { const v = 0.12 * power; return v * v / (2 * FRIC); }
 
   // ---------- putt ----------
   function buildPutt() {
-    const r = S.round, g = makeGreen(S.plan[r].s);
-    let aim = 0, power = 50, locked = false, c = null, xf = null, saveT = null;
-    const cv = h('canvas', { class: 'green', 'aria-label': 'Putting green with slope arrows' });
+    const r = S.round, seed = S.plan[r].s, g = makeGreen(seed);
+    let aim = 0, power = 50, locked = false, ok = false, saveT = null, raf = 0;
+    const cv = h('canvas', { class: 'green', 'aria-label': 'Putting green seen from behind the ball, with moving slope arrows' });
+    const view = makeView(cv, g, seed);
     const timer = makeTimer();
     timer.label('Your ball launches at zero');
     const aimOut = h('b', {}, ''), powOut = h('b', {}, '');
-    const powS = slider({ min: 0, max: 100, step: 1, value: 50, vertical: true, label: 'Power', onInput: v => { power = v; changed(); } });
+    const powS = slider({ min: 0, max: 100, step: 1, value: 50, label: 'Power', onInput: v => { power = v; changed(); } });
     const aimS = slider({ min: -25, max: 25, step: 0.5, value: 0, mid: true, label: 'Aim', onInput: v => { aim = v; changed(); } });
     const nud = d => () => { aimS.set(aim + d, true); };
-    // press and drag anywhere on the green: the arrow swings to point at your finger
-    cv.style.touchAction = 'none'; cv.style.cursor = 'grab';
-    let dragging = false;
-    const aimAt = e => {
-      if (locked || !xf) return;
-      const b = cv.getBoundingClientRect(), dx = e.clientX - b.left - xf.X(0), dy = xf.Y(0) - (e.clientY - b.top);
-      if (Math.hypot(dx, dy) < 14) return;
-      let d = (Math.atan2(dx, dy) - Math.atan2(g.hx, g.hy)) * 180 / Math.PI;
-      d = ((d + 540) % 360) - 180;
-      aimS.set(clamp(d, -25, 25), true);
+    // slingshot: press below the ball and pull back. The arrow points away from your finger, and a longer pull means more power.
+    cv.style.touchAction = 'none';
+    let pull = null, startPt = null, moved = 0, drag = false;
+    const pullTo = e => {
+      if (locked || !ok) return;
+      const t = view.touch(e);
+      if (!startPt) startPt = { x: t.x, y: t.y };
+      moved = Math.max(moved, Math.hypot(t.x - startPt.x, t.y - startPt.y));
+      pull = { x: t.x, y: t.y, px: t.px, moved };
+      if (moved >= 10) { powS.set(clamp((t.px - 14) / (0.17 * cv.clientHeight) * 100, 0, 100), true); aimS.set(clamp(t.aim, -25, 25), true); }
     };
-    cv.addEventListener('pointerdown', e => { if (locked) return; dragging = true; cv.style.cursor = 'grabbing'; try { cv.setPointerCapture(e.pointerId); } catch (x) { /* ignore */ } aimAt(e); e.preventDefault(); });
-    cv.addEventListener('pointermove', e => { if (dragging) aimAt(e); });
-    const endDrag = () => { dragging = false; cv.style.cursor = 'grab'; };
-    cv.addEventListener('pointerup', endDrag); cv.addEventListener('pointercancel', endDrag);
+    const endDrag = () => { drag = false; pull = null; startPt = null; moved = 0; };
+    cv.addEventListener('pointerdown', e => { if (locked) return; drag = true; try { cv.setPointerCapture(e.pointerId); } catch (x) { /* ignore */ } pullTo(e); e.preventDefault(); });
+    cv.addEventListener('pointermove', e => { if (drag) pullTo(e); });
+    cv.addEventListener('pointerup', () => {
+      const set = drag && pull && pull.px >= 22 && moved >= 10 && !locked;
+      endDrag();
+      if (set) { status.textContent = 'Shot set. You can still adjust until the timer ends.'; status.hidden = false; clearTimeout(saveT); savePutt(r, aim, power); }
+    });
+    cv.addEventListener('pointercancel', endDrag); cv.addEventListener('lostpointercapture', () => { if (drag) endDrag(); });
     const status = h('div', { class: 'banner' }, 'Struck. Watch the replay.');
     status.hidden = true;
     function changed() {
       aim = aimS.get(); power = powS.get();
       aimOut.textContent = aim === 0 ? 'On the hole line' : Math.abs(aim).toFixed(1) + '° ' + (aim > 0 ? 'right' : 'left');
       powOut.textContent = '≈ ' + Math.round(flatFeet(power)) + ' ft on flat';
-      draw();
       clearTimeout(saveT); saveT = setTimeout(() => { if (!locked) savePutt(r, aim, power); }, 800);
     }
-    function draw() { if (!c) return; drawGreen(c, g, xf, { aim, handle: !locked }); drawBall(c, xf.X(0), xf.Y(0), '#fff'); }
-    function lock() { locked = true; powS.el.classList.add('off'); aimS.el.classList.add('off'); status.hidden = false; clearTimeout(saveT); savePutt(r, aim, power); draw(); }
-    function layout() { c = setupCanvas(cv); if (c) { xf = fit(g, c.w, c.h); draw(); } }
+    function frame(now) {
+      raf = requestAnimationFrame(frame);
+      view.draw(now, { aimUI: !locked, aim, power, pull: drag ? pull : null, balls: [{ x: 0, y: 0, col: '#FFFFFF' }] });
+    }
+    function lock() { locked = true; endDrag(); powS.el.classList.add('off'); aimS.el.classList.add('off'); status.textContent = 'Struck. Watch the replay.'; status.hidden = false; clearTimeout(saveT); savePutt(r, aim, power); }
+    function layout() { ok = view.size(); }
     return {
       root: h('div', { class: 'col' }, timer.el,
-        h('div', { class: 'stage' }, cv, h('div', { class: 'pw' }, h('span', { class: 'label' }, 'Power'), powS.el)),
-        h('div', { class: 'aimrow' }, h('button', { class: 'btn nudge', 'aria-label': 'Aim left', onclick: nud(-0.5) }, '◀'), aimS.el, h('button', { class: 'btn nudge', 'aria-label': 'Aim right', onclick: nud(0.5) }, '▶')),
+        h('div', { class: 'stage' }, cv),
+        h('div', { class: 'aimrow' }, h('span', { class: 'rowlab' }, 'Aim'), h('button', { class: 'btn nudge', 'aria-label': 'Aim left', onclick: nud(-0.5) }, '◀'), aimS.el, h('button', { class: 'btn nudge', 'aria-label': 'Aim right', onclick: nud(0.5) }, '▶')),
+        h('div', { class: 'aimrow' }, h('span', { class: 'rowlab' }, 'Power'), powS.el),
         h('div', { class: 'readout' }, h('span', {}, 'Aim ', aimOut), h('span', {}, 'Power ', powOut)),
-        h('p', { class: 'sub' }, 'Drag on the green to swing the aim arrow, or use the slider. Arrows point downhill, and longer, brighter ones are steeper. Do nothing and your ball goes straight at the hole at medium power.'),
+        h('p', { class: 'sub' }, 'Pull back below the ball like a slingshot. Drag right and the arrow swings left, and a longer pull is more power. Let go to set the shot, or use the sliders. Arrows point downhill: faster and darker means steeper. Do nothing and your ball goes straight at the hole at medium power.'),
         status),
-      mounted() { layout(); changed(); },
+      mounted() { layout(); changed(); raf = requestAnimationFrame(frame); },
       resize() { layout(); },
+      destroy() { cancelAnimationFrame(raf); clearTimeout(saveT); },
       tick() { timer.tick(); if (!locked && left() <= 0) lock(); },
-      update() { if (!c) layout(); }
+      update() { if (!ok) layout(); }
     };
   }
 
   // ---------- replay ----------
   function buildReplay() {
-    const r = S.round, g = makeGreen(S.plan[r].s);
+    const r = S.round, seed = S.plan[r].s, g = makeGreen(seed);
     const cv = h('canvas', { class: 'green', 'aria-label': 'Replay of every putt' });
+    const view = makeView(cv, g, seed);
     const banner = h('div', { class: 'banner' }, 'Rolling…'), panel = h('div', { class: 'col' });
     panel.hidden = true;
-    let c = null, xf = null, rd = null, t0 = 0, maxT = 0, done = false, raf = 0, started = false, popped = false;
-    function popPutt(m) {
+    let ok = false, rd = null, t0 = 0, maxT = 0, done = false, raf = 0, started = false, popped = false;
+    function popPutt(m, now) {
       if (popped || !m) return;
       popped = true;
-      const label = m.out === 'sunk' ? 'Sunk it!' : m.out === 'lip' ? 'Lipped out' : m.out === 'inch' ? 'Inside a foot' : m.out === 'near' ? 'Within 4 ft' : 'Missed';
-      popPoints(m.p, label, m.out === 'sunk');
+      view.splash(view.resultLines(m), m.out === 'sunk', now == null ? performance.now() : now);
     }
     const pos = (path, t) => { const f = t / SAMPLE, i = Math.min(path.length / 2 - 1, Math.floor(f)), j = Math.min(path.length / 2 - 1, i + 1), k = clamp(f - i, 0, 1); return [path[2 * i] + (path[2 * j] - path[2 * i]) * k, path[2 * i + 1] + (path[2 * j + 1] - path[2 * i + 1]) * k]; };
-    function frame() {
-      if (!c || !rd) return;
-      const t = (performance.now() - t0) / 1000;
-      drawGreen(c, g, xf, null);
-      const { ctx } = c;
-      for (const u of S.pl) {
-        const p = rd.pt[u]; if (!p) continue;
-        const tt = Math.min(t, p.t), n = Math.min(p.path.length / 2 - 1, Math.floor(tt / SAMPLE));
-        ctx.strokeStyle = pCol(u); ctx.globalAlpha = u === uid ? 0.95 : 0.6; ctx.lineWidth = u === uid ? 3.5 : 3; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
-        ctx.beginPath(); ctx.moveTo(xf.X(p.path[0]), xf.Y(p.path[1]));
-        for (let i = 1; i <= n; i++) ctx.lineTo(xf.X(p.path[2 * i]), xf.Y(p.path[2 * i + 1]));
-        const [ex, ey] = pos(p.path, tt); ctx.lineTo(xf.X(ex), xf.Y(ey)); ctx.stroke(); ctx.globalAlpha = 1;
-      }
-      const mine = rd.pt[uid];
-      if (mine) { const [ex, ey] = pos(mine.path, Math.min(t, mine.t)); if (!(mine.out === 'sunk' && t >= mine.t)) drawBall(c, xf.X(ex), xf.Y(ey), '#fff'); if (t >= mine.t) popPutt(mine); }
-      if (!done && t >= maxT + 0.4) finish();
-      if (!done || t < maxT + 1) raf = requestAnimationFrame(frame);
+    function frame(now) {
+      raf = requestAnimationFrame(frame);
+      if (!ok) return;
+      const t = started ? (now - t0) / 1000 : 0, trails = [], balls = [];
+      let shake = 0;
+      if (rd && started) {
+        for (const u of S.pl.slice().sort((a, b) => (a === uid) - (b === uid))) {
+          const p = rd.pt[u]; if (!p) continue;
+          const tt = Math.min(t, p.t), [ex, ey] = pos(p.path, tt);
+          trails.push({ path: p.path, tt, col: pCol(u), a: u === uid ? 0.95 : 0.6, lw: u === uid ? 3.5 : 3 });
+          let a = 1, s = 1;
+          if (p.fell && t > p.t) { const tau = t - p.t; a = clamp(1 - tau / 0.3, 0, 1); s = 1 - 0.5 * Math.min(tau / 0.3, 1); }
+          if (p.out === 'sunk' && t >= p.t) a = 0;
+          balls.push(u === uid ? { x: ex, y: ey, a, s, col: '#FFFFFF' } : { x: ex, y: ey, a: a * 0.9, s, col: pCol(u), r: 0.85 });
+          if (p.pole && t >= p.poleT) shake = Math.max(shake, Math.max(0, 1 - (t - p.poleT) / 1.2));
+        }
+        const mine = rd.pt[uid];
+        if (mine && (mine.fell ? t >= mine.t + 0.3 : t >= mine.t)) popPutt(mine, now);
+        if (!done && t >= maxT + 0.4) finish();
+      } else balls.push({ x: 0, y: 0, col: '#FFFFFF' });
+      view.draw(now, { balls, trails, shake });
     }
     function finish() {
       done = true; popPutt(rd.pt[uid]); showPanel();
@@ -2060,26 +2295,26 @@ function flatFeet(power) { const v = 0.12 * power; return v * v / (2 * FRIC); }
       const mine = rd.pt[uid];
       if (mine) {
         banner.className = 'banner' + (mine.out === 'sunk' ? ' sunk' : '');
-        banner.textContent = mine.out === 'sunk' ? 'Sunk it. +100' : mine.out === 'lip' ? 'Lipped out. +75' : `${fmtDist(mine.d)} away${mine.p ? '. +' + mine.p : ''}`;
+        banner.textContent = mine.out === 'sunk' ? 'Sunk it. +100' : mine.out === 'lip' ? 'Lipped out. +75' : mine.out === 'fell' ? (view.kind === 0 ? 'Over the cliff. +0' : 'Off the green. +0') : `${fmtDist(mine.d)} away${mine.p ? '. +' + mine.p : ''}`;
       }
       const sc = (R['r' + r] || {}).sc || {}, tot = totals();
       const order = S.pl.slice().sort((a, b) => (rd.pt[b] ? rd.pt[b].p : 0) - (rd.pt[a] ? rd.pt[a].p : 0));
-      const label = p => p.out === 'sunk' ? 'Sunk' : p.out === 'lip' ? 'Lipped out' : fmtDist(p.d) + ' away';
+      const label = p => p.out === 'sunk' ? 'Sunk' : p.out === 'lip' ? 'Lipped out' : p.out === 'fell' ? (view.kind === 0 ? 'Over the cliff' : 'Off the green') : fmtDist(p.d) + ' away';
       const rows = h('div', { class: 'list' }, order.map(u => { const p = rd.pt[u]; return resRow(u, p ? label(p) + (p.none ? ' (no putt set)' : '') : '', 'This round ' + (((sc[u] && sc[u].q) || 0) + (p ? p.p : 0)) + ' · Total ' + (tot[u] ? tot[u].t : 0), p ? p.p : 0); }));
       panel.replaceChildren(rows); panel.hidden = false;
     }
-    function begin() { started = true; maxT = Math.max(0, ...S.pl.map(u => (rd.pt[u] ? rd.pt[u].t : 0))); t0 = performance.now(); cancelAnimationFrame(raf); raf = requestAnimationFrame(frame); }
-    function layout() { c = setupCanvas(cv); if (c) { xf = fit(g, c.w, c.h); if (!rd) drawGreen(c, g, xf, null); } }
+    function begin() { started = true; maxT = Math.max(0, ...S.pl.map(u => (rd.pt[u] ? rd.pt[u].t : 0))); t0 = performance.now(); }
+    function layout() { ok = view.size(); }
     return {
       root: h('div', { class: 'col' }, h('div', { class: 'stage' }, cv), banner, panel),
-      mounted() { layout(); },
+      mounted() { layout(); raf = requestAnimationFrame(frame); },
       resize() { layout(); },
       tick() { if (started && !done && (performance.now() - t0) / 1000 >= maxT + 1.2) finish(); },
       destroy() { cancelAnimationFrame(raf); },
       update() {
         const rr = R['r' + r];
-        if (!c) layout();
-        if (rr && rr.pt) { rd = rr; if (!started && c) begin(); else if (done) showPanel(); }
+        if (!ok) layout();
+        if (rr && rr.pt) { rd = rr; if (!started && ok) begin(); else if (done) showPanel(); }
       }
     };
   }
