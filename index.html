@@ -294,6 +294,8 @@ button.chip { cursor: pointer; min-height: 30px; }
 .badge.b10{background:#D8C6AA;color:#4A3720}.badge.b25{background:#EAD7B5;color:#4A3720}.badge.b45{background:#9FE3C4;color:#0E3B27}
 #ver{position:fixed;right:8px;bottom:4px;font:600 10px/1 'DM Mono',monospace;color:rgba(31,58,43,.45);pointer-events:none;z-index:5}
 
+.stakes { margin: 6px 0 0; padding: 8px 12px; border-radius: 10px; background: rgba(255,200,60,0.14); color: var(--gold, #c9962a); font-weight: 700; font-size: 13px; text-align: center; }
+
 </style>
 </head>
 <body>
@@ -1466,12 +1468,18 @@ function simulate(g, aimDeg, power) {
   let out, p;
   if (sunk) { out = 'sunk'; p = 100; }
   else if (fell) { out = 'fell'; p = 0; }
-  else if ((lipped && dist <= 1.2) || dmin < HOLE_R + 0.06) { out = 'lip'; p = 75; }
+  else if (lipped && dist <= 1.5) { out = 'lip'; p = 75; } // a lip-out needs a real rim hit and the ball to stay close
   else if (dist <= 1) { out = 'inch'; p = 50; }
-  else if (dist <= 4) { out = 'near'; p = 25; }
+  else if (dist <= 3) { out = 'near'; p = 25; }
   else { out = 'miss'; p = 0; }
   return { path, t: (path.length / 2 - 1) * SAMPLE, out, p, d: r2(dist), fell, pole, poleT: r2(poleT), lipped };
 }
+// Putting is a multiplier on the points you earned on the question just before it.
+// Round total = question points x multiplier, so the putt adds q x (mult - 1). A floor keeps putts worth something after a blank answer.
+const PUTT_MULT = { sunk: 2.5, inch: 1.75, lip: 1.5, near: 1.25, miss: 1, fell: 1 };
+const PUTT_FLOOR = 25;
+function puttMult(out) { return PUTT_MULT[out] || 1; }
+function puttBonus(q, out) { const base = Math.max(PUTT_FLOOR, q || 0); return Math.round(base * (puttMult(out) - 1) / 5) * 5; }
 function flatFeet(power) { const v = 0.12 * effPower(power); return v * v / (2 * FRIC); }
 
 // ---- extra accepted answers, merged into KRILL at load. Cross-checked against public datasets (dariusk/corpora etc.) and curated by hand. ----
@@ -2168,8 +2176,8 @@ function makeView(cv, g, seed) {
     ball: () => P(0, 0, 0.1),
     splash(lines, win, now, stay) { banner = { lines, win, t0: now, stay: !!stay }; if (win) celeb = now; },
     resultLines(m) { // from a stored putt result
-      const base = { sunk: 'SUNK!', lip: 'Lipped out.', inch: 'Inside a foot.', near: 'Within 4 ft.', miss: 'Missed.', fell: kind === 0 ? 'Over the cliff!' : 'Off the green.' }[m.out] || 'Missed.';
-      return [].concat(m.pole ? ['Off the flagstick!'] : [], [base, '+' + (m.p || 0)]);
+      const base = { sunk: 'SUNK!', lip: 'Lipped out.', inch: 'Inside a foot.', near: 'Within 3 ft.', miss: 'Missed.', fell: kind === 0 ? 'Over the cliff!' : 'Off the green.' }[m.out] || 'Missed.';
+      return [].concat(m.pole ? ['Off the flagstick!'] : [], [base, (m.m && m.m !== 1 ? '×' + m.m + '  ' : '') + '+' + (m.p || 0)]);
     }
   };
 }
@@ -2392,11 +2400,12 @@ function makeView(cv, g, seed) {
       } else if (S.phase === 'putt') {
         const gr = makeGreen(S.plan[r].s), putts = await readDocs('putts', 'r' + r, ids);
         const pt = {}; let maxT = 0;
+        const qdoc = await g.collection('rounds').doc('r' + r).get(), qsc = (qdoc.data() || {}).sc || {};
         for (const u of ids) {
           const d = putts[u] || {};
           const aim = clamp(Number.isFinite(+d.aim) ? +d.aim : 0, -25, 25), power = clamp(d.power == null || !Number.isFinite(+d.power) ? 50 : +d.power, 0, 100);
           const s = simulate(gr, aim, power);
-          pt[u] = { aim, power, path: s.path, out: s.out, d: s.d, p: s.p, t: s.t, none: !putts[u], fell: !!s.fell, pole: !!s.pole, poleT: s.poleT || 0 };
+          pt[u] = { aim, power, path: s.path, out: s.out, d: s.d, p: puttBonus((qsc[u] && qsc[u].q) || 0, s.out), m: puttMult(s.out), qb: Math.max(PUTT_FLOOR, (qsc[u] && qsc[u].q) || 0), t: s.t, none: !putts[u], fell: !!s.fell, pole: !!s.pole, poleT: s.poleT || 0 };
           maxT = Math.max(maxT, s.t);
         }
         const rs = await g.collection('rounds').doc('r' + r).get();
@@ -2863,6 +2872,7 @@ function makeView(cv, g, seed) {
         h('div', { class: 'aimrow' }, h('span', { class: 'rowlab' }, 'Power'), powS.el),
         shootBtn,
         h('div', { class: 'readout' }, h('span', {}, 'Aim ', aimOut), h('span', {}, 'Power ', powOut)),
+        h('p', { class: 'stakes' }, (() => { const q = Math.max(PUTT_FLOOR, ((R['r' + r] || {}).sc || {})[uid] ? ((R['r' + r].sc[uid].q) || 0) : 0); return 'Your putt multiplies your last answer (' + q + '): sink it for +' + puttBonus(q, 'sunk') + ', inside 1 ft +' + puttBonus(q, 'inch') + ', within 3 ft +' + puttBonus(q, 'near') + '.'; })()),
         h('p', { class: 'sub' }, 'Pull back below the ball like a slingshot and let go to shoot, or set the sliders and tap SHOOT. Drag right and the arrow swings left; a longer pull is more power. Arrows point downhill: faster and darker means steeper. Shoot on your own time, watch your ball, then everyone\'s shots replay together.'),
         status),
       mounted() { layout(); changed(); raf = requestAnimationFrame(frame); },
@@ -2874,7 +2884,7 @@ function makeView(cv, g, seed) {
   }
 
   // ---------- replay ----------
-  const tagWord = p => ({ sunk: 'Sunk', lip: 'Lip-out', inch: 'Inside 1 ft', near: 'Within 4 ft', miss: 'Miss', fell: 'Fell off' }[p.out] || 'Miss');
+  const tagWord = p => ({ sunk: 'Sunk', lip: 'Lip-out', inch: 'Inside 1 ft', near: 'Within 3 ft', miss: 'Miss', fell: 'Fell off' }[p.out] || 'Miss');
   function buildReplay() {
     const r = S.round, seed = S.plan[r].s, g = makeGreen(seed);
     const cv = h('canvas', { class: 'green', 'aria-label': 'Replay of every putt' });
@@ -2902,7 +2912,7 @@ function makeView(cv, g, seed) {
           if (p.fell && t > p.t) { const tau = t - p.t; a = clamp(1 - tau / 0.3, 0, 1); s = 1 - 0.5 * Math.min(tau / 0.3, 1); }
           if (p.out === 'sunk' && t >= p.t) a = 0;
           balls.push(u === uid ? { x: ex, y: ey, a, s, col: '#FFFFFF' } : { x: ex, y: ey, a: a * 0.9, s, col: pCol(u), r: 0.85 });
-          if (u !== uid && (p.fell ? t >= p.t + 0.3 : t >= p.t)) { const wt = p.fell ? p.t + 0.3 : p.t; tags.push({ x: p.path[p.path.length - 2], y: p.path[p.path.length - 1], col: pCol(u), t0: now - Math.max(0, t - wt) * 1000, text: pName(u) + ' · ' + tagWord(p) + ' +' + p.p }); }
+          if (u !== uid && (p.fell ? t >= p.t + 0.3 : t >= p.t)) { const wt = p.fell ? p.t + 0.3 : p.t; tags.push({ x: p.path[p.path.length - 2], y: p.path[p.path.length - 1], col: pCol(u), t0: now - Math.max(0, t - wt) * 1000, text: pName(u) + ' · ' + tagWord(p) + ' ×' + (p.m || 1) + ' · +' + p.p }); }
           if (p.pole && t >= p.poleT) shake = Math.max(shake, Math.max(0, 1 - (t - p.poleT) / 1.2));
         }
         const mine = rd.pt[uid];
@@ -2918,7 +2928,8 @@ function makeView(cv, g, seed) {
       const mine = rd.pt[uid];
       if (mine) {
         banner.className = 'banner' + (mine.out === 'sunk' ? ' sunk' : '');
-        banner.textContent = mine.out === 'sunk' ? 'Sunk it. +100' : mine.out === 'lip' ? 'Lipped out. +75' : mine.out === 'fell' ? (view.kind === 0 ? 'Over the cliff. +0' : 'Off the green. +0') : `${fmtDist(mine.d)} away${mine.p ? '. +' + mine.p : ''}`;
+        const mx = mine.m && mine.m !== 1 ? ' ×' + mine.m + ' · +' + mine.p : ' +0';
+        banner.textContent = (mine.out === 'sunk' ? 'Sunk it.' : mine.out === 'lip' ? 'Lipped out.' : mine.out === 'fell' ? (view.kind === 0 ? 'Over the cliff.' : 'Off the green.') : `${fmtDist(mine.d)} away.`) + mx;
       }
       const sc = (R['r' + r] || {}).sc || {}, tot = totals();
       const order = S.pl.slice().sort((a, b) => (rd.pt[b] ? rd.pt[b].p : 0) - (rd.pt[a] ? rd.pt[a].p : 0));
@@ -2956,7 +2967,7 @@ function makeView(cv, g, seed) {
         box.replaceChildren(...ids.map((u, i) => h('div', { class: 'stand' + (u === uid ? ' me' : '') },
           h('div', { class: 'row' }, h('span', { class: 'mono muted' }, (i + 1) + '.'), dotEl(u), h('span', { class: 'grow name' }, pName(u)), h('span', { class: 'pts' }, t[u].t)),
           h('div', { class: 'bar' }, h('i', { style: `width:${top ? t[u].t / top * 100 : 0}%;background:${pCol(u)}` })),
-          h('div', { class: 'sub' }, `Trivia ${t[u].qa} · Deep answers ${t[u].qk} · Putting ${t[u].p}`))));
+          h('div', { class: 'sub' }, `Trivia ${t[u].qa} · Deep answers ${t[u].qk} · Putt bonus ${t[u].p}`))));
       }
     };
   }
