@@ -1350,7 +1350,17 @@ const G_ACC = 23, FRIC = 1.8, HOLE_R = 0.22, DT = 1 / 240, SAMPLE = 0.05;
 // the cup keeps a ball only if it is slow enough for how far off-center it crosses: fastest at dead center, zero speed allowed at the rim
 const CAPTURE_V = 6.5;
 const POLE_R = 0.09, POLE_E = 0.45; // a ball too fast to drop that hits the flagstick bounces off it
-const SLOPE_K = 1.5, GREEN_W = 6.3, GREEN_NEAR = 3, GREEN_FAR = 8;
+const SLOPE_K = 1.5, GREEN_W = 9.9, GREEN_NEAR = 3, GREEN_FAR = 8, GREEN_RC = 4.8;
+// how far inside the rounded-rectangle green a point (u across, v toward the hole) is; negative means off the green
+function greenIn(g, u, v) { // superellipse: a wide, rounded oval. Distance is an estimate of feet to the edge, negative when off the green
+  const vmin = -g.near, vmax = g.D + GREEN_FAR, hv = (vmax - vmin) / 2, cv = (vmax + vmin) / 2, n = 2.5;
+  const x = Math.abs(u) / GREEN_W, y = Math.abs(v - cv) / hv;
+  const s = Math.pow(x, n) + Math.pow(y, n), r = Math.pow(s, 1 / n);
+  if (r < 1e-6) return GREEN_W;
+  const k = r / (s || 1); // d r / d x = x^(n-1) * r^(1-n)
+  const gx = Math.pow(x, n - 1) * Math.pow(r, 1 - n) / GREEN_W, gy = Math.pow(y, n - 1) * Math.pow(r, 1 - n) / hv;
+  return (1 - r) / (Math.hypot(gx, gy) || 1e-6);
+}
 function makeGreen(seed) {
   const r = mulberry32(seed);
   const D = 6.5 + r() * 19.5;
@@ -1361,7 +1371,7 @@ function makeGreen(seed) {
     const lam = 7 + r() * 10, phi = r() * Math.PI * 2, psi = r() * Math.PI * 2, amp = 0.006 + r() * 0.01;
     waves.push({ kx: Math.cos(phi) * 2 * Math.PI / lam, ky: Math.sin(phi) * 2 * Math.PI / lam, dx: Math.cos(phi), dy: Math.sin(phi), psi, amp: amp * SLOPE_K });
   }
-  return { D, near: Math.max(GREEN_NEAR, 20 - D - GREEN_FAR), hx, hy: D, gx0: Math.cos(a0) * m0 * SLOPE_K, gy0: Math.sin(a0) * m0 * SLOPE_K, waves };
+  return { D, near: Math.max(GREEN_NEAR + 0.5, 40 - D), hx, hy: D, gx0: Math.cos(a0) * m0 * SLOPE_K, gy0: Math.sin(a0) * m0 * SLOPE_K, waves };
 }
 function grade(g, x, y) {
   let gx = g.gx0, gy = g.gy0;
@@ -1400,7 +1410,7 @@ function simulate(g, aimDeg, power) {
       path.push(r2(x), r2(y));
     }
     const eu = x * cb - y * sb, ev = x * sb + y * cb;
-    if (Math.abs(eu) > GREEN_W || ev > g.D + GREEN_FAR || ev < -g.near) { fell = true; path.push(r2(x), r2(y)); break; }
+    if (greenIn(g, eu, ev) < 0) { fell = true; path.push(r2(x), r2(y)); break; }
     if (step % 12 === 0) path.push(r2(x), r2(y));
     if (Math.abs(x) > 45 || y > 70 || y < -30) break;
   }
@@ -1425,10 +1435,10 @@ function makeView(cv, g, seed) {
   const REDUCE = !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
   const TILT = 72 * Math.PI / 180, RELIEF = 1.25;
   const vmin = -g.near, vmax = g.D + GREEN_FAR, b = Math.atan2(g.hx, g.hy);
-  const kind = Math.floor(mulberry32(seed ^ 0x5bd1e995)() * 3);
+  const NK = 7, kind = Math.floor(mulberry32(seed ^ 0x5bd1e995)() * NK);
   let w = 0, h = 0, cam = null, scene = null, banner = null, celeb = 0;
-  const FR = 5.2, GROUND = [[91, 154, 76], [47, 110, 73], [232, 191, 128]][kind]; // how wide the fringe is, and the color it melts into
-  const edgeD = (u, v) => Math.min(W - Math.abs(u), vmax - v);
+  const FR = 3.0, GROUND = [[91, 154, 76], [47, 110, 73], [232, 191, 128], [76, 154, 88], [125, 181, 85], [63, 138, 87], [93, 184, 106]][kind]; // how wide the fringe is, and the color it melts into
+  const edgeD = (u, v) => greenIn(g, u, v);
   const sm = t => { t = clamp(t, 0, 1); return t * t * t * (t * (6 * t - 15) + 10); };
   const mix = (a, c, t) => a.map((v, i) => Math.round(v + (c[i] - v) * t));
 
@@ -1438,7 +1448,7 @@ function makeView(cv, g, seed) {
   const uv2w = (u, v) => [u * Math.cos(b) + v * Math.sin(b), -u * Math.sin(b) + v * Math.cos(b)];
   const toUV = (x, y) => [x * Math.cos(b) - y * Math.sin(b), x * Math.sin(b) + y * Math.cos(b)];
   const Z = (u, v) => { const [x, y] = uv2w(u, v); return RELIEF * (hgt(x, y) - hz0); };
-  const cells = [], NRA = Math.ceil((vmax - vmin) / SP), colsA = Math.round(2 * W / SP), shade = [];
+  const hts = [], cells = [], NRA = Math.ceil((vmax - vmin) / SP), colsA = Math.round(2 * W / SP), shade = [];
   for (let j = 0; j < NRA; j++) for (let i = 0; i < colsA; i++) {
     const u = -W + SP * (i + 0.5), v = vmin + SP * (j + 0.5);
     if (Math.hypot(u, v) < 1.3 || Math.hypot(u, v - g.D) < 1.1) continue;
@@ -1451,20 +1461,32 @@ function makeView(cv, g, seed) {
   for (let r = 0; r < NRA * 3; r++) for (let i = 0; i < NC; i++) {
     const u = -W + STEP * (i + 0.5), v = vmin + STEP * (r + 0.5), [x, y] = uv2w(u, v), [gx, gy] = grade(g, x, y);
     const gu = gx * Math.cos(b) - gy * Math.sin(b), gv = gx * Math.sin(b) + gy * Math.cos(b);
-    let nx = -RELIEF * gu, ny = -RELIEF * gv, nz = 1; const nl = Math.hypot(nx, ny, nz); nx /= nl; ny /= nl; nz /= nl;
-    shade.push(clamp(0.5 + 2.4 * ((nx * 0.55 + ny * 0.25 + nz * 0.8) - 0.8), 0, 1));
+    // light from the upper left and the far side: slopes facing it brighten, slopes facing away fall into shadow (tilt exaggerated so gentle swells read)
+    let nx = -RELIEF * gu * 3, ny = -RELIEF * gv * 3, nz = 1; const nl = Math.hypot(nx, ny, nz); nx /= nl; ny /= nl; nz /= nl;
+    const LX = -0.5, LY = 0.45, LZ = 0.75, LL = Math.hypot(LX, LY, LZ);
+    shade.push(3.0 * ((nx * LX + ny * LY + nz * LZ) / LL - LZ / LL));
+    hts.push(Z(u, v));
   }
 
+  { // smooth the lighting and center it so every green has the same overall brightness
+    const rows = shade.length / NC, sm2 = shade.slice();
+    for (let r = 0; r < rows; r++) for (let i = 0; i < NC; i++) { let s = 0, n = 0; for (let dr = -2; dr <= 2; dr++) for (let di = -2; di <= 2; di++) { const rr = r + dr, ii = i + di; if (rr >= 0 && rr < rows && ii >= 0 && ii < NC) { s += sm2[rr * NC + ii]; n++; } } shade[r * NC + i] = s / n; }
+    const mean = shade.reduce((a, b) => a + b, 0) / shade.length;
+    for (let q = 0; q < shade.length; q++) shade[q] = clamp(0.5 + (shade[q] - mean) * 1.0, 0, 1);
+  }
   function P(u, v, z) {
     z = z || 0;
-    const rv = v + cam.cb, c = Math.cos(cam.phi), s = Math.sin(cam.phi), d = rv * c + (cam.H - z) * s, yc = rv * s + (z - cam.H) * c, k = cam.F / d;
+    const rv = v - g.D + cam.cb, c = Math.cos(cam.phi), s = Math.sin(cam.phi), d = rv * c + (cam.H - z) * s, yc = rv * s + (z - cam.H) * c, k = cam.F / d;
     return { x: cam.cx + u * k, y: cam.cy - yc * k, k };
   }
   function fit() {
-    const L = g.D + GREEN_FAR + g.near;
-    cam = { phi: TILT, H: Math.max(1.5, 0.18 * L), cb: 0.2 * L, F: 1, cx: w / 2, cy: 0 };
-    const ph = P(0, g.D, Z(0, g.D)), pb = P(0, 0, 0), ah = -ph.y, ab = -pb.y;
+    // one fixed camera for every green, aimed at the hole: the hole, flag and horizon always sit in the same place and size.
+    // Only the ball moves (up the screen on short putts, down it on long ones). Calibrated on the longest putt so it always fits.
+    const DR = 26.5, L = DR + GREEN_FAR + GREEN_NEAR;
+    cam = { phi: TILT, H: 0.18 * L, cb: DR + 0.2 * L, F: 1, cx: w / 2, cy: 0 };
+    const ah = -P(0, g.D, 0).y, ab = -P(0, g.D - DR, 0).y;
     cam.F = 0.52 * h / (ah - ab); cam.cy = 0.32 * h + cam.F * ah; scene = null;
+    cam.cy += 0.32 * h - P(0, g.D, Z(0, g.D)).y; // cancel the hole's own terrain height so it sits at the same spot on every green
   }
   function size() {
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
@@ -1475,7 +1497,7 @@ function makeView(cv, g, seed) {
   function ground(sx, sy) { // screen point -> (u, v) feet from the ball, along the hole line
     const k = (cam.cy - sy) / cam.F, c = Math.cos(cam.phi), s = Math.sin(cam.phi);
     const rv = cam.H * (c + k * s) / (s - k * c), d = rv * c + cam.H * s;
-    return { u: (sx - cam.cx) * d / cam.F, v: rv - cam.cb };
+    return { u: (sx - cam.cx) * d / cam.F, v: rv - cam.cb + g.D };
   }
   // pointer -> pull info: where the finger is, how far it is from the ball in pixels, and the aim angle it implies
   function touch(e) {
@@ -1495,21 +1517,63 @@ function makeView(cv, g, seed) {
     const glow = (x, y, r, col) => { const q = c.createRadialGradient(x, y, 0, x, y, r); q.addColorStop(0, col); q.addColorStop(1, 'rgba(255,255,255,0)'); c.fillStyle = q; c.fillRect(x - r, y - r, 2 * r, 2 * r); };
     const cloud = (x, y, sc, a) => { c.fillStyle = `rgba(255,255,255,${a})`; [[0, 0, 26, 9], [-18, 3, 18, 7], [20, 2, 20, 8], [4, -6, 15, 8]].forEach(p => { c.beginPath(); c.ellipse(x + p[0] * sc, y + p[1] * sc, p[2] * sc, p[3] * sc, 0, 0, 7); c.fill(); }); };
     const tree = (x, base, tw, th, col) => { c.fillStyle = col; for (let i = 0; i < 3; i++) { const y0 = base - th * (0.32 * i), ww = tw * (1 - i * 0.22); c.beginPath(); c.moveTo(x, base - th * (0.32 * i + 0.55)); c.lineTo(x + ww / 2, y0); c.lineTo(x - ww / 2, y0); c.closePath(); c.fill(); } };
-    if (kind === 0) { // cliffside over the sea
+    if (kind === 0) { // cliffside over the sea: layered rock, grass caps, beach and surf
       c.fillStyle = '#5B9A4C'; c.fillRect(0, 0, w, h);
-      c.fillStyle = lin(0, H0, '#69BDEB', '#E3F5FF'); c.fillRect(0, 0, w, H0 + 2);
-      glow(w * R(0.25, 0.75), H0 * 0.3, H0 * 0.55, 'rgba(255,248,200,0.95)');
-      c.fillStyle = '#FFF6D0'; c.beginPath(); c.arc(w * R(0.3, 0.7), H0 * 0.3, H0 * 0.08, 0, 7); c.fill();
-      cloud(w * R(0.1, 0.4), H0 * R(0.12, 0.3), 1.2, 0.9); cloud(w * R(0.55, 0.9), H0 * R(0.2, 0.4), 0.9, 0.85);
-      const sy = H0 * 0.56; c.fillStyle = lin(sy, H0, '#3FA6DA', '#1D74B0'); c.fillRect(0, sy, w, H0 - sy + 2);
-      c.fillStyle = '#7FA9BB'; c.beginPath(); c.ellipse(w * R(0.3, 0.7), sy + 1, w * 0.16, H0 * 0.07, 0, Math.PI, 0); c.fill();
-      c.strokeStyle = 'rgba(255,255,255,0.55)'; c.lineWidth = 2; c.lineCap = 'round';
-      for (let i = 0; i < 26; i++) { const x = R(0, w), y = R(sy + 6, H0 - 4), l = R(8, 22) * (0.5 + (y - sy) / (H0 - sy)); c.beginPath(); c.moveTo(x, y); c.lineTo(x + l, y); c.stroke(); }
-      [[0, 1], [1, -1]].forEach(([side, dir]) => {
-        const x0 = side ? w : 0, wd = w * R(0.13, 0.22), top = H0 * R(0.22, 0.45);
-        c.fillStyle = '#C69463'; c.beginPath(); c.moveTo(x0, top); c.lineTo(x0 + dir * wd * 0.8, top + H0 * 0.08); c.lineTo(x0 + dir * wd, H0 * 0.72); c.lineTo(x0 + dir * wd * 0.8, H0 + 2); c.lineTo(x0, H0 + 2); c.closePath(); c.fill();
-        c.strokeStyle = 'rgba(110,70,40,0.5)'; c.lineWidth = 2; for (let i = 1; i < 5; i++) { const y = top + (H0 - top) * i / 5; c.beginPath(); c.moveTo(x0, y); c.lineTo(x0 + dir * wd * (0.7 + 0.2 * rng()), y + 3); c.stroke(); }
-        c.fillStyle = '#69AE55'; c.beginPath(); c.moveTo(x0, top - 7); c.lineTo(x0 + dir * wd * 0.85, top + H0 * 0.04); c.lineTo(x0 + dir * wd * 0.8, top + H0 * 0.1); c.lineTo(x0, top + 6); c.closePath(); c.fill();
+      c.fillStyle = lin(0, H0, '#58B0EA', '#EAF7FF'); c.fillRect(0, 0, w, H0 + 2);
+      const sxn = R(0.3, 0.7), sx0 = w * sxn;
+      glow(sx0, H0 * 0.32, H0 * 0.62, 'rgba(255,246,200,0.95)');
+      c.fillStyle = '#FFF8D8'; c.beginPath(); c.arc(sx0, H0 * 0.32, H0 * 0.07, 0, 7); c.fill();
+      cloud(w * R(0.08, 0.4), H0 * R(0.12, 0.28), 1.2, 0.92); cloud(w * R(0.6, 0.92), H0 * R(0.18, 0.38), 0.85, 0.85);
+      const sy = H0 * 0.5;
+      // sea
+      c.fillStyle = lin(sy, H0, '#5EBBE6', '#1B6CA8'); c.fillRect(0, sy, w, H0 - sy + 2);
+      // hazy headlands on the horizon
+      const hcx = R(0.25, 0.75);
+      [['rgba(150,180,196,0.9)', 0.07, 0.22], ['rgba(112,150,172,0.95)', 0.05, 0.14]].forEach(([col, ht, sp]) => {
+        c.fillStyle = col; c.beginPath(); c.moveTo(0, sy + 1);
+        for (let x = 0; x <= w; x += 6) { const g2 = Math.exp(-Math.pow((x / w - hcx - (ht > 0.06 ? 0 : 0.18)) / sp, 2)); c.lineTo(x, sy - H0 * ht * g2 * (0.85 + 0.15 * Math.sin(x * 0.11))); }
+        c.lineTo(w, sy + 1); c.closePath(); c.fill();
+      });
+      // sun glitter and whitecaps
+      c.lineCap = 'round';
+      for (let i = 0; i < 40; i++) { const y = R(sy + 3, H0 - 3), t = (y - sy) / (H0 - sy), x = sx0 + R(-1, 1) * (14 + 40 * t), l = R(6, 16) * (0.5 + t); c.strokeStyle = `rgba(255,252,220,${0.35 + 0.4 * (1 - Math.abs(x - sx0) / (60 + 40 * t))})`; c.lineWidth = 2; c.beginPath(); c.moveTo(x, y); c.lineTo(x + l, y); c.stroke(); }
+      c.strokeStyle = 'rgba(255,255,255,0.55)';
+      for (let i = 0; i < 30; i++) { const x = R(0, w), y = R(sy + 6, H0 - 4), l = R(8, 24) * (0.5 + (y - sy) / (H0 - sy)); c.lineWidth = 2; c.beginPath(); c.moveTo(x, y); c.lineTo(x + l, y); c.stroke(); }
+      // the cliffs
+      [0, 1].forEach(side => {
+        const x0 = side ? w : 0, dir = side ? -1 : 1, wd = w * R(0.2, 0.3), top = H0 * R(0.18, 0.34), base = H0 + 3;
+        const topPts = [], N = 9;
+        for (let i = 0; i <= N; i++) topPts.push([x0 + dir * wd * 0.9 * (i / N), top + (i / N) * (i / N) * H0 * 0.1 + R(-3, 3) - (i === 0 ? 4 : 0)]);
+        const faceX = x0 + dir * wd * 0.9, faceBase = x0 + dir * wd * R(0.5, 0.7), face = [];
+        for (let i = 1; i <= 8; i++) { const t = i / 8; face.push([faceX + (faceBase - faceX) * t + dir * R(-6, 6) * Math.sin(t * 3.14) * 2, topPts[N][1] + (base - topPts[N][1]) * t]); }
+        const outline = () => { c.beginPath(); c.moveTo(x0, base); c.lineTo(x0, topPts[0][1]); topPts.forEach(p => c.lineTo(p[0], p[1])); face.forEach(p => c.lineTo(p[0], p[1])); c.lineTo(x0 + dir * wd * 0.3, base); c.closePath(); };
+        // rock body, lit from the sun's side
+        outline(); c.fillStyle = lin(top, base, '#E3BE88', '#8E5B34'); c.fill();
+        c.save(); outline(); c.clip();
+        // strata: wavy bands of light and dark sandstone
+        for (let i = 0; i < 11; i++) {
+          const y = top + (base - top) * (i + R(0, 0.6)) / 11, th = R(2, 6), dark = i % 2 === 0;
+          c.fillStyle = dark ? 'rgba(96,56,28,0.28)' : 'rgba(255,232,190,0.2)'; c.beginPath(); c.moveTo(Math.min(x0, x0 + dir * wd), y);
+          for (let x = 0; x <= wd; x += 8) c.lineTo(x0 + dir * x, y + Math.sin(x * 0.07 + i) * 2.2);
+          for (let x = wd; x >= 0; x -= 8) c.lineTo(x0 + dir * x, y + th + Math.sin(x * 0.07 + i) * 2.2);
+          c.closePath(); c.fill();
+        }
+        // vertical cracks and chips
+        c.strokeStyle = 'rgba(70,38,18,0.45)'; c.lineWidth = 1.5;
+        for (let i = 0; i < 9; i++) { let x = x0 + dir * R(0.1, 0.85) * wd, y = top + (base - top) * R(0.1, 0.5); c.beginPath(); c.moveTo(x, y); for (let k = 0; k < 4; k++) { x += R(-4, 4); y += R(6, 16); c.lineTo(x, y); } c.stroke(); }
+        // shade the side away from the sun and the foot of the cliff
+        c.fillStyle = lin(top, base, 'rgba(60,30,10,0)', 'rgba(40,20,10,0.5)'); c.fillRect(0, top - 6, w, base - top + 8);
+        const sh = c.createLinearGradient(x0 + dir * wd, 0, x0 + dir * wd * 0.35, 0); sh.addColorStop(0, sxn > 0.5 === (side === 0) ? 'rgba(255,240,200,0.25)' : 'rgba(40,20,10,0.3)'); sh.addColorStop(1, 'rgba(0,0,0,0)'); c.fillStyle = sh; c.fillRect(0, top - 6, w, base - top + 8);
+        c.restore();
+        // grassy cap with tufts and a couple of bushes
+        c.fillStyle = '#69AE55'; c.beginPath(); c.moveTo(x0, topPts[0][1] - 9); topPts.forEach(p => c.lineTo(p[0], p[1] - 6)); for (let i = N; i >= 0; i--) c.lineTo(topPts[i][0], topPts[i][1] + 5 + 3 * Math.sin(i * 2.3)); c.lineTo(x0, topPts[0][1] + 8); c.closePath(); c.fill();
+        c.fillStyle = '#7DC364'; for (let i = 0; i < 14; i++) { const t = R(0, 1), p = topPts[Math.min(N, Math.floor(t * N))]; c.beginPath(); c.moveTo(p[0] - 3, p[1] - 5); c.lineTo(p[0], p[1] - 11 - R(0, 4)); c.lineTo(p[0] + 3, p[1] - 5); c.fill(); }
+        c.fillStyle = '#3F8B47'; for (let i = 0; i < 3; i++) { const p = topPts[1 + Math.floor(R(0, 5))]; c.beginPath(); c.ellipse(p[0], p[1] - 9, 10 + R(0, 6), 8, 0, 0, 7); c.fill(); }
+        // a sandy beach at the foot, then surf
+        c.fillStyle = '#EFD9A4'; c.beginPath(); c.ellipse(x0 + dir * wd * 0.7, base - 1, wd * 0.5, H0 * 0.05, 0, Math.PI, 0); c.fill();
+        c.fillStyle = 'rgba(255,255,255,0.85)'; for (let i = 0; i < 9; i++) { c.beginPath(); c.ellipse(x0 + dir * (wd * 0.35 + i * wd * 0.1), base - 2 - R(0, 4), R(8, 16), 2.2, 0, 0, 7); c.fill(); }
+        // sea stack
+        const sxk = x0 + dir * wd * R(1.05, 1.5); c.fillStyle = '#8A5A3A'; c.beginPath(); c.moveTo(sxk - 11, H0 + 2); c.lineTo(sxk - 7, H0 - H0 * 0.12); c.lineTo(sxk + 5, H0 - H0 * 0.14); c.lineTo(sxk + 11, H0 + 2); c.closePath(); c.fill(); c.fillStyle = '#69AE55'; c.fillRect(sxk - 7, H0 - H0 * 0.14 - 3, 12, 4); c.fillStyle = 'rgba(255,255,255,0.8)'; c.beginPath(); c.ellipse(sxk, H0 + 1, 16, 3, 0, 0, 7); c.fill();
       });
     } else if (kind === 1) { // pine forest, morning light
       c.fillStyle = '#2F6E49'; c.fillRect(0, 0, w, h);
@@ -1521,7 +1585,7 @@ function makeView(cv, g, seed) {
         for (let x = -10; x < w + 20; x += R(st * 0.6, st)) tree(x, H0 + 6 + li * 3, R(18, 28) * (1 + li * 0.15), H0 * R(a, z), col);
         if (li === 0) { c.fillStyle = lin(H0 * 0.5, H0, 'rgba(255,255,255,0)', 'rgba(255,255,240,0.55)'); c.fillRect(0, H0 * 0.5, w, H0 * 0.5 + 2); }
       });
-    } else { // desert mesas
+    } else if (kind === 2) { // desert mesas
       c.fillStyle = '#E8BF80'; c.fillRect(0, 0, w, h);
       c.fillStyle = lin(0, H0, '#FFC384', '#FFF0D6'); c.fillRect(0, 0, w, H0 + 2);
       const sx = w * R(0.25, 0.75); glow(sx, H0 * 0.42, H0 * 0.7, 'rgba(255,236,170,0.95)');
@@ -1532,10 +1596,91 @@ function makeView(cv, g, seed) {
       c.fillStyle = '#F2C77E'; c.beginPath(); c.moveTo(0, H0 + 3); for (let x = 0; x <= w; x += 6) c.lineTo(x, H0 * 0.86 - Math.sin(x / w * 5 + R(0, 0.2)) * H0 * 0.06); c.lineTo(w, H0 + 3); c.closePath(); c.fill();
       c.strokeStyle = '#3E7B47'; c.lineCap = 'round';
       [w * R(0.05, 0.16), w * R(0.84, 0.95)].forEach(x => { const ht = H0 * R(0.42, 0.55), y = H0 + 2; c.lineWidth = 9; c.beginPath(); c.moveTo(x, y); c.lineTo(x, y - ht); c.stroke(); c.lineWidth = 6; c.beginPath(); c.moveTo(x, y - ht * 0.4); c.lineTo(x - 15, y - ht * 0.4); c.lineTo(x - 15, y - ht * 0.68); c.moveTo(x, y - ht * 0.55); c.lineTo(x + 14, y - ht * 0.55); c.lineTo(x + 14, y - ht * 0.8); c.stroke(); });
+        } else if (kind === 3) { // metro skyline
+      c.fillStyle = '#4C9A58'; c.fillRect(0, 0, w, h);
+      c.fillStyle = lin(0, H0, '#78B7F0', '#FFE6C8'); c.fillRect(0, 0, w, H0 + 2);
+      glow(w * R(0.2, 0.8), H0 * 0.85, H0 * 0.9, 'rgba(255,208,140,0.75)');
+      cloud(w * R(0.1, 0.4), H0 * R(0.12, 0.3), 1.1, 0.85); cloud(w * R(0.6, 0.9), H0 * R(0.2, 0.4), 0.8, 0.8);
+      const layers = [['#B9CAE3', 0.3, 0.78, 14, 26, 0], ['#8CA4C8', 0.24, 0.6, 18, 34, 0], ['#5D789F', 0.14, 0.42, 22, 40, 1]];
+      layers.forEach(([col, lo, hi, wmin, wmax, win], li) => {
+        for (let x = -10; x < w + 10;) {
+          const bw = R(wmin, wmax), bh = H0 * R(lo, hi);
+          c.fillStyle = col; c.fillRect(x, H0 + 2 - bh, bw, bh + 2);
+          if (R(0, 1) < 0.35) c.fillRect(x + bw * 0.2, H0 + 2 - bh - H0 * 0.05, bw * 0.6, H0 * 0.05 + 2);
+          if (R(0, 1) < 0.25) { c.fillRect(x + bw * 0.48, H0 + 2 - bh - H0 * 0.13, 2, H0 * 0.13); }
+          c.fillStyle = 'rgba(255,255,255,0.12)'; c.fillRect(x, H0 + 2 - bh, bw * 0.3, bh + 2);
+          if (win) { c.fillStyle = 'rgba(255,232,160,0.8)'; for (let yy = H0 + 2 - bh + 5; yy < H0 - 4; yy += 7) for (let xx = x + 3; xx < x + bw - 3; xx += 6) if (R(0, 1) < 0.45) c.fillRect(xx, yy, 3, 3.5); }
+          x += bw + R(-2, 3);
+        }
+      });
+      // a signature tower
+      const tx = w * R(0.15, 0.85), th = H0 * 0.92; c.fillStyle = '#4C6791'; c.fillRect(tx - 9, H0 - th * 0.78, 18, th * 0.78 + 3); c.fillStyle = '#6B86AE'; c.fillRect(tx - 9, H0 - th * 0.78, 6, th * 0.78 + 3); c.fillStyle = '#4C6791'; c.beginPath(); c.moveTo(tx - 9, H0 - th * 0.78); c.lineTo(tx, H0 - th); c.lineTo(tx + 9, H0 - th * 0.78); c.fill(); c.fillRect(tx - 1, H0 - th - 12, 2, 14);
+      // tree line and the course's edge
+      for (let x = -6; x < w + 8; x += R(14, 22)) { const r = R(9, 15); c.fillStyle = '#2F7A44'; c.beginPath(); c.arc(x, H0 + 2, r, Math.PI, 0); c.fill(); c.fillStyle = '#48A25A'; c.beginPath(); c.arc(x - r * 0.25, H0 + 2 - r * 0.25, r * 0.5, Math.PI, 0); c.fill(); }
+    } else if (kind === 4) { // farm: patchwork fields, red barn, silo, fence
+      c.fillStyle = '#7DB555'; c.fillRect(0, 0, w, h);
+      c.fillStyle = lin(0, H0, '#86CDF6', '#EEF9FF'); c.fillRect(0, 0, w, H0 + 2);
+      cloud(w * R(0.1, 0.4), H0 * R(0.12, 0.3), 1.3, 0.95); cloud(w * R(0.55, 0.9), H0 * R(0.2, 0.4), 1.0, 0.9);
+      // rolling hills with crop rows
+      const hill = (yb, amp, c1, c2, rows) => {
+        const ph = R(0, 6);
+        c.save(); c.beginPath(); c.moveTo(0, H0 + 3); for (let x = 0; x <= w; x += 6) c.lineTo(x, yb - Math.sin(x / w * 4 + ph) * amp - Math.sin(x / w * 9 + ph) * amp * 0.3); c.lineTo(w, H0 + 3); c.closePath(); c.clip();
+        c.fillStyle = c1; c.fillRect(0, 0, w, H0 + 3);
+        for (let i = 0; i < rows; i++) { const x = (i / rows) * w * 1.4 - w * 0.2; c.strokeStyle = c2; c.lineWidth = 3 + 4 * (i % 3); c.beginPath(); c.moveTo(x, yb - amp * 1.5); c.lineTo(w / 2 + (x - w / 2) * 2.4, H0 + 3); c.stroke(); }
+        c.restore();
+      };
+      hill(H0 * 0.62, H0 * 0.07, '#B5D68A', '#A3C97A', 14);
+      hill(H0 * 0.8, H0 * 0.06, '#E6CB66', '#D4B54E', 18);
+      hill(H0 * 0.93, H0 * 0.035, '#79B552', '#68A545', 16);
+      // barn and silo
+      const bx = w * (R(0, 1) < 0.5 ? R(0.1, 0.25) : R(0.68, 0.82)), bb = H0 * 0.84, bw = w * 0.2, bh = H0 * 0.2;
+      c.fillStyle = '#C23B2E'; c.fillRect(bx - bw / 2, bb - bh, bw, bh);
+      c.fillStyle = '#7A2418'; c.beginPath(); c.moveTo(bx - bw / 2 - 4, bb - bh); c.lineTo(bx - bw * 0.3, bb - bh - bh * 0.4); c.lineTo(bx + bw * 0.3, bb - bh - bh * 0.4); c.lineTo(bx + bw / 2 + 4, bb - bh); c.closePath(); c.fill();
+      c.strokeStyle = '#FFFFFF'; c.lineWidth = 2; c.strokeRect(bx - bw * 0.2, bb - bh * 0.62, bw * 0.4, bh * 0.62); c.beginPath(); c.moveTo(bx - bw * 0.2, bb - bh * 0.62); c.lineTo(bx + bw * 0.2, bb); c.moveTo(bx + bw * 0.2, bb - bh * 0.62); c.lineTo(bx - bw * 0.2, bb); c.stroke();
+      const sx2 = bx + bw * 0.62; c.fillStyle = '#C9D2D8'; c.fillRect(sx2 - 9, bb - bh * 1.55, 18, bh * 1.55); c.fillStyle = '#8C98A3'; c.beginPath(); c.arc(sx2, bb - bh * 1.55, 9, Math.PI, 0); c.fill(); c.fillStyle = 'rgba(255,255,255,0.35)'; c.fillRect(sx2 - 9, bb - bh * 1.55, 5, bh * 1.55);
+      // hay bales, trees and a white fence
+      for (let i = 0; i < 4; i++) { const hx = w * R(0.05, 0.95), hy = H0 * R(0.9, 0.97); c.fillStyle = '#E3B94A'; c.beginPath(); c.ellipse(hx, hy, 9, 7, 0, 0, 7); c.fill(); c.strokeStyle = '#B9892B'; c.lineWidth = 1.5; c.stroke(); }
+      for (let i = 0; i < 3; i++) { const tx = w * R(0.05, 0.95), ty = H0 * 0.78; c.fillStyle = '#6B4A2A'; c.fillRect(tx - 2, ty, 4, 14); c.fillStyle = '#3F8F45'; c.beginPath(); c.arc(tx, ty, 14, 0, 7); c.fill(); c.fillStyle = '#58AA55'; c.beginPath(); c.arc(tx - 4, ty - 4, 8, 0, 7); c.fill(); }
+      c.fillStyle = '#FFFFFF'; c.strokeStyle = '#D9DDD8'; c.lineWidth = 1; c.fillRect(0, H0 - 4, w, 3); c.fillRect(0, H0 + 3, w, 3);
+      for (let x = 4; x < w; x += 22) c.fillRect(x, H0 - 10, 4, 18);
+    } else if (kind === 5) { // alpine lake under snowy peaks
+      c.fillStyle = '#3F8A57'; c.fillRect(0, 0, w, h);
+      c.fillStyle = lin(0, H0, '#74BDF2', '#F0F9FF'); c.fillRect(0, 0, w, H0 + 2);
+      cloud(w * R(0.1, 0.5), H0 * R(0.1, 0.25), 1.1, 0.85);
+      const ly = H0 * 0.78;
+      [['#A8BEDC', 0.5, 0.82, 5], ['#7F9CC6', 0.36, 0.64, 6], ['#587BA8', 0.22, 0.46, 8]].forEach(([col, lo, hi, n], li) => {
+        const pk = []; for (let i = 0; i <= n; i++) pk.push([w * (i / n) + R(-20, 20), li === 2 && i % 2 ? ly - H0 * R(lo * 0.5, lo) : ly - H0 * R(lo, hi)]);
+        c.fillStyle = col; c.beginPath(); c.moveTo(-10, ly + 1); pk.forEach((p, i) => { if (i) c.lineTo((pk[i - 1][0] + p[0]) / 2 + R(-6, 6), Math.max(pk[i - 1][1], p[1]) + H0 * 0.05); c.lineTo(p[0], p[1]); }); c.lineTo(w + 10, ly + 1); c.closePath(); c.fill();
+        // snow caps on the taller peaks, shaded on one side
+        if (li < 2) pk.forEach(p => { const sw = (ly - p[1]) * 0.35; c.fillStyle = '#FFFFFF'; c.beginPath(); c.moveTo(p[0], p[1]); c.lineTo(p[0] + sw, p[1] + sw * 1.4); c.lineTo(p[0] + sw * 0.5, p[1] + sw * 1.1); c.lineTo(p[0] + sw * 0.1, p[1] + sw * 1.7); c.lineTo(p[0] - sw * 0.4, p[1] + sw * 1.2); c.lineTo(p[0] - sw, p[1] + sw * 1.4); c.closePath(); c.fill(); c.fillStyle = 'rgba(150,180,220,0.45)'; c.beginPath(); c.moveTo(p[0], p[1]); c.lineTo(p[0] + sw, p[1] + sw * 1.4); c.lineTo(p[0] + sw * 0.1, p[1] + sw * 1.7); c.closePath(); c.fill(); });
+      });
+      c.fillStyle = lin(ly, H0, '#58B2D2', '#2F7FA8'); c.fillRect(0, ly, w, H0 - ly + 2);
+      c.strokeStyle = 'rgba(255,255,255,0.5)'; c.lineWidth = 2; c.lineCap = 'round'; for (let i = 0; i < 14; i++) { const x = R(0, w), y = R(ly + 3, H0 - 2); c.beginPath(); c.moveTo(x, y); c.lineTo(x + R(8, 20), y); c.stroke(); }
+      for (let x = -10; x < w + 20; x += R(14, 22)) tree(x, H0 + 5, R(20, 30), H0 * R(0.28, 0.5), '#245C3F');
+    } else if (kind === 6) { // tropical beach with palms
+      c.fillStyle = '#5DB86A'; c.fillRect(0, 0, w, h);
+      c.fillStyle = lin(0, H0, '#42BDF2', '#DFF7FF'); c.fillRect(0, 0, w, H0 + 2);
+      const sx3 = w * R(0.3, 0.7); glow(sx3, H0 * 0.3, H0 * 0.6, 'rgba(255,246,190,0.95)'); c.fillStyle = '#FFF8D0'; c.beginPath(); c.arc(sx3, H0 * 0.3, H0 * 0.07, 0, 7); c.fill();
+      cloud(w * R(0.1, 0.4), H0 * R(0.15, 0.3), 1.2, 0.9); cloud(w * R(0.6, 0.9), H0 * R(0.2, 0.4), 0.9, 0.85);
+      const sy3 = H0 * 0.52, sd = H0 * 0.88;
+      c.fillStyle = lin(sy3, sd, '#27AFC9', '#46D6C8'); c.fillRect(0, sy3, w, sd - sy3 + 1);
+      c.fillStyle = lin(sd - H0 * 0.1, sd, 'rgba(160,240,225,0)', 'rgba(170,245,230,0.9)'); c.fillRect(0, sd - H0 * 0.1, w, H0 * 0.1 + 1);
+      const ix = w * R(0.25, 0.75); c.fillStyle = '#5E8F8A'; c.beginPath(); c.moveTo(ix - w * 0.12, sy3 + 1); c.lineTo(ix - w * 0.03, sy3 - H0 * 0.13); c.lineTo(ix + w * 0.03, sy3 - H0 * 0.12); c.lineTo(ix + w * 0.13, sy3 + 1); c.closePath(); c.fill(); c.fillStyle = '#3F8A55'; c.beginPath(); c.moveTo(ix - w * 0.1, sy3 + 1); c.lineTo(ix - w * 0.03, sy3 - H0 * 0.1); c.lineTo(ix + w * 0.03, sy3 - H0 * 0.09); c.lineTo(ix + w * 0.11, sy3 + 1); c.closePath(); c.fill();
+      c.fillStyle = '#F5E2B0'; c.fillRect(0, sd, w, H0 - sd + 3); c.fillStyle = 'rgba(255,255,255,0.9)'; for (let x = 0; x < w; x += 18) { c.beginPath(); c.ellipse(x + R(0, 8), sd, R(9, 16), 2.2, 0, 0, 7); c.fill(); }
+      c.strokeStyle = 'rgba(255,255,255,0.5)'; c.lineWidth = 2; c.lineCap = 'round'; for (let i = 0; i < 14; i++) { const x = R(0, w), y = R(sy3 + 4, sd - 6); c.beginPath(); c.moveTo(x, y); c.lineTo(x + R(8, 18), y); c.stroke(); }
+      const palm = (x, lean, ht) => {
+        const tx = x + lean * ht, ty = H0 + 3 - ht;
+        c.strokeStyle = '#8A5E37'; c.lineWidth = 8; c.lineCap = 'round'; c.beginPath(); c.moveTo(x, H0 + 3); c.quadraticCurveTo(x + lean * ht * 0.2, H0 + 3 - ht * 0.6, tx, ty); c.stroke();
+        c.strokeStyle = 'rgba(60,35,15,0.4)'; c.lineWidth = 2; for (let i = 1; i < 7; i++) { const f = i / 7, px = x + (tx - x) * f * f * 0.9, py = H0 + 3 - ht * f; c.beginPath(); c.moveTo(px - 4, py); c.lineTo(px + 4, py + 2); c.stroke(); }
+        for (let i = 0; i < 8; i++) { const a = -Math.PI * (i / 7) - 0.15 + (lean > 0 ? 0.1 : -0.1), L = ht * 0.55, ex = tx + Math.cos(a) * L, ey = ty + Math.sin(a) * L * 0.55 + L * 0.35;
+          c.fillStyle = i % 2 ? '#2F9E4F' : '#46B85E'; c.beginPath(); c.moveTo(tx, ty); c.quadraticCurveTo(tx + Math.cos(a) * L * 0.6, ty + Math.sin(a) * L * 0.8 - 8, ex, ey); c.quadraticCurveTo(tx + Math.cos(a) * L * 0.55, ty + Math.sin(a) * L * 0.6 + 2, tx, ty); c.fill(); }
+        c.fillStyle = '#6B4A2A'; c.beginPath(); c.arc(tx - 3, ty + 4, 4, 0, 7); c.arc(tx + 3, ty + 5, 4, 0, 7); c.fill();
+      };
+      palm(w * R(0.06, 0.14), 0.18, H0 * R(0.8, 0.95)); palm(w * R(0.86, 0.94), -0.18, H0 * R(0.7, 0.9)); palm(w * R(0.18, 0.26), 0.12, H0 * R(0.45, 0.55));
     }
-    const birds = [], nb = kind === 0 ? 4 : 3;
+    const birds = [], nb = kind === 0 ? 4 : kind === 3 ? 2 : 3;
     for (let i = 0; i < nb; i++) birds.push({ x: R(0, w), y: H0 * R(0.1, 0.42), s: R(0.8, 1.25), ph: R(0, 6.28), sp: R(0, 1.5) });
-    return { img: oc, birds, col: ['#2E4452', '#2A4A3A', '#5A3A2A'][kind] };
+    return { img: oc, birds, col: ['#2E4452', '#2A4A3A', '#5A3A2A', '#3A4458', '#4A3A2A', '#2E3E58', '#2E4452'][kind] };
   }
 
   // ---- small drawing helpers ----
@@ -1585,10 +1730,11 @@ function makeView(cv, g, seed) {
         const r = j * 3 + k, v0 = vmin + STEP * r, v1 = Math.min(v0 + STEP, vmax);
         if (v0 >= vmax - 0.001) continue;
         for (let i = 0; i < NC; i++) {
-          const u0 = -W + STEP * i, u1 = u0 + STEP, sh = shade[r * NC + i], base = ((r >> 1) % 2 ? [108, 194, 122] : [98, 184, 112]), f = 0.7 + 0.6 * sh;
-          const ed = edgeD((u0 + u1) / 2, (v0 + v1) / 2) / FR, gcol = [base[0] * f, base[1] * f, base[2] * f], fr = mix(gcol, [gcol[0] * 0.9 + 12, gcol[1] * 0.93, gcol[2] * 0.8], 0.5), gc = ed > 0.55 ? mix(fr, gcol, sm((ed - 0.55) / 0.45)) : mix(GROUND, fr, sm(ed / 0.55));
+          const u0 = -W + STEP * i, u1 = u0 + STEP, sh = shade[r * NC + i], base = ((r >> 1) % 2 ? [108, 194, 122] : [98, 184, 112]), f = 0.68 + 0.62 * sh, zq = hts[r * NC + i];
+          const ed = edgeD((u0 + u1) / 2, (v0 + v1) / 2) / FR, hl = clamp(zq / 0.9, -1, 1), gcol = [base[0] * f + 9 * hl, base[1] * f + 5 * hl, base[2] * f - 8 * hl], fr = mix(gcol, [gcol[0] * 0.9 + 12, gcol[1] * 0.93, gcol[2] * 0.8], 0.5), gc = ed > 0.55 ? mix(fr, gcol, sm((ed - 0.55) / 0.45)) : mix(GROUND, fr, sm(ed / 0.55));
           const col = `rgb(${Math.min(255, gc[0]) | 0},${Math.min(255, gc[1]) | 0},${Math.min(255, gc[2]) | 0})`;
-          const al0 = sm(ed / 0.22), cc = al0 >= 0.995 ? col : `rgba(${Math.min(255, gc[0]) | 0},${Math.min(255, gc[1]) | 0},${Math.min(255, gc[2]) | 0},${al0.toFixed(3)})`;
+          if (ed <= 0) continue;
+          const al0 = sm(ed / 0.35), cc = al0 >= 0.995 ? col : `rgba(${Math.min(255, gc[0]) | 0},${Math.min(255, gc[1]) | 0},${Math.min(255, gc[2]) | 0},${al0.toFixed(3)})`;
           poly([P(u0, v0, Z(u0, v0)), P(u1, v0, Z(u1, v0)), P(u1, v1, Z(u1, v1)), P(u0, v1, Z(u0, v1))], cc, al0 >= 0.995 ? col : null, 1);
         }
       }
@@ -1596,7 +1742,7 @@ function makeView(cv, g, seed) {
         const cp = P(c.u, c.v, Z(c.u, c.v) + ZL);
         if (c.m < 0.002) { ctx.fillStyle = 'rgba(255,255,255,0.6)'; ctx.beginPath(); ctx.arc(cp.x, cp.y, Math.max(1.5, 0.07 * cp.k), 0, 7); ctx.fill(); continue; }
         const t = c.t, len = SP * (0.3 + 0.2 * t), e = (SP / 2) / Math.max(Math.abs(c.du), Math.abs(c.dv)), range = e - len / 2 - 0.05;
-        const ph = (T * (0.25 + 1.5 * t) + c.off) % 1, s = (ph * 2 - 1) * range, al = Math.pow(Math.sin(Math.PI * ph), 0.55) * (0.8 + 0.2 * t) * sm((edgeD(c.u, c.v) - 0.4) / 3.2);
+        const ph = (T * (0.25 + 1.5 * t) + c.off) % 1, s = (ph * 2 - 1) * range, al = Math.pow(Math.sin(Math.PI * ph), 0.55) * (0.8 + 0.2 * t) * sm((edgeD(c.u, c.v) - 0.3) / 2.2);
         const col = mix([246, 255, 244], [14, 44, 28], Math.pow(t, 0.8));
         const au = c.u + c.du * (s - len / 2), av = c.v + c.dv * (s - len / 2), bu = c.u + c.du * (s + len / 2), bv = c.v + c.dv * (s + len / 2);
         arrow(P(au, av, Z(au, av) + ZL), P(bu, bv, Z(bu, bv) + ZL), `rgba(${col[0]},${col[1]},${col[2]},${al.toFixed(2)})`, Math.max(1.4, (0.06 + 0.07 * t) * cp.k), Math.max(4, (0.24 + 0.1 * t) * cp.k));
