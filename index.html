@@ -328,7 +328,7 @@ const CATS = {
 // [category, question, correct answer, wrong, wrong, wrong]
 const TRIVIA = [
   ['G', 'Which river is the longest in Europe?', 'Volga', 'Danube', 'Rhine', 'Loire'],
-  ['G', 'What is the capital of Australia?', 'Canberra', 'Sydney', 'Melbourne', 'Perth'],
+  ['G', 'Which city is the national capital, even though Sydney and Melbourne are larger?', 'Canberra', 'Sydney', 'Melbourne', 'Perth'],
   ['G', 'Counting overseas territories, which country spans the most time zones?', 'France', 'Russia', 'United States', 'China'],
   ['G', 'Which is the largest hot desert in the world?', 'Sahara', 'Arabian', 'Kalahari', 'Gobi'],
   ['G', 'Mount Kilimanjaro is in which country?', 'Tanzania', 'Kenya', 'Uganda', 'Ethiopia'],
@@ -349,7 +349,7 @@ const TRIVIA = [
   ['P', 'In golf, what is a score of three under par on a single hole called?', 'Albatross', 'Eagle', 'Condor', 'Birdie'],
   ['P', 'Which country won the first FIFA World Cup in 1930?', 'Uruguay', 'Brazil', 'Argentina', 'Italy'],
   ['P', 'How many Grand Slam singles titles did Roger Federer win?', '20', '18', '22', '24'],
-  ['P', 'What is the diameter of a regulation basketball hoop?', '18 inches', '16 inches', '20 inches', '24 inches'],
+  ['P', 'What is the inside diameter of a regulation NBA rim?', '18 inches', '16 inches', '20 inches', '24 inches'],
   ['P', 'What is the diameter of a standard golf hole?', '4.25 inches', '3.5 inches', '5 inches', '6 inches'],
   ['E', 'Which film won the first Academy Award for Best Picture?', 'Wings', 'The Jazz Singer', 'Metropolis', 'Sunrise'],
   ['E', 'What is the name of the paper company in the US version of The Office?', 'Dunder Mifflin', 'Sabre', 'Prestige Paper', 'Vance Paper'],
@@ -506,16 +506,16 @@ const KRILL = [
 TRIVIA.push(
   // Geography
   ["G", "Which is the largest country in Africa by area?", "Algeria", "Sudan", "Democratic Republic of the Congo", "Libya"],
-  ["G", "What is the capital of Canada?", "Ottawa", "Toronto", "Montreal", "Vancouver"],
+  ["G", "Which city on the Ontario–Quebec border is the national capital?", "Ottawa", "Toronto", "Montreal", "Vancouver"],
   ["G", "Which ocean is the deepest?", "Pacific", "Atlantic", "Indian", "Arctic"],
-  ["G", "What is the capital of Brazil?", "Brasilia", "Rio de Janeiro", "Sao Paulo", "Salvador"],
+  ["G", "Which planned city, built in the 1950s, is the capital of South America's largest country?", "Brasilia", "Rio de Janeiro", "Sao Paulo", "Salvador"],
   ["G", "What is the smallest country in the world by area?", "Vatican City", "Monaco", "San Marino", "Liechtenstein"],
   ["G", "Lake Baikal, the deepest lake on Earth, is in which country?", "Russia", "Mongolia", "Kazakhstan", "China"],
-  ["G", "Which strait separates Spain from Morocco?", "Strait of Gibraltar", "Bosporus", "Strait of Hormuz", "Strait of Magellan"],
+  ["G", "Which strait separates Europe from Africa at the western end of the Mediterranean?", "Strait of Gibraltar", "Bosporus", "Strait of Hormuz", "Strait of Magellan"],
   ["G", "Which river flows through Baghdad?", "Tigris", "Euphrates", "Nile", "Jordan"],
-  ["G", "What is the capital of Turkey?", "Ankara", "Istanbul", "Izmir", "Bursa"],
+  ["G", "Which city is the capital of the country that spans Europe and Asia, though Istanbul is larger?", "Ankara", "Istanbul", "Izmir", "Bursa"],
   ["G", "Which country has the most natural lakes?", "Canada", "Russia", "Finland", "United States"],
-  ["G", "After Alaska, which is the largest US state by area?", "Texas", "California", "Montana", "New Mexico"],
+  ["G", "Which is the second-largest US state by area?", "Texas", "California", "Montana", "New Mexico"],
   ["G", "Angel Falls, the tallest uninterrupted waterfall, is in which country?", "Venezuela", "Brazil", "Zambia", "Argentina"],
   ["G", "Which desert covers much of southern Mongolia and northern China?", "Gobi", "Sahara", "Atacama", "Kalahari"],
   ["G", "What is the capital of New Zealand?", "Wellington", "Auckland", "Christchurch", "Hamilton"],
@@ -532,7 +532,7 @@ TRIVIA.push(
   ["S", "What is the SI unit of electrical resistance?", "Ohm", "Volt", "Ampere", "Watt"],
   ["S", "What is the smallest bone in the human body?", "Stapes", "Incus", "Malleus", "Pisiform"],
   ["S", "Which organ produces insulin?", "Pancreas", "Liver", "Kidney", "Spleen"],
-  ["S", "Which vitamin does the body make when skin is exposed to sunlight?", "Vitamin D", "Vitamin C", "Vitamin A", "Vitamin K"],
+  ["S", "Which vitamin does the body make when exposed to sunlight?", "Vitamin D", "Vitamin C", "Vitamin A", "Vitamin K"],
   ["S", "At sea level, at what temperature in Fahrenheit does water boil?", "212", "200", "180", "220"],
   ["S", "Who discovered penicillin?", "Alexander Fleming", "Louis Pasteur", "Joseph Lister", "Edward Jenner"],
   ["S", "What is the chemical formula for table salt?", "NaCl", "KCl", "NaOH", "CaCl2"],
@@ -574,7 +574,7 @@ TRIVIA.push(
   ["P", "Which school plays its home football games at Neyland Stadium?", "Tennessee", "Kentucky", "Vanderbilt", "South Carolina"],
   ["P", "Bevo is the live mascot of which university?", "Texas", "Texas A&M", "Oklahoma", "Baylor"],
   ["P", "Which country hosted the 2016 Summer Olympics?", "Brazil", "Japan", "United Kingdom", "China"],
-  ["P", "Which baseball team plays its home games at Fenway Park?", "Boston Red Sox", "New York Yankees", "Chicago Cubs", "Baltimore Orioles"],
+  ["P", "Which team plays its home games at Fenway Park?", "Boston Red Sox", "New York Yankees", "Chicago Cubs", "Baltimore Orioles"],
   ["P", "What is the name of the Wimbledon courts' surface?", "Grass", "Clay", "Hard court", "Carpet"],
   // Entertainment
   ["E", "In which film does a character say 'I'll be back'?", "The Terminator", "RoboCop", "Predator", "Commando"],
@@ -584,7 +584,7 @@ TRIVIA.push(
   ["E", "What is the name of the kingdom in Disney's Frozen?", "Arendelle", "Corona", "Agrabah", "Genovia"],
   ["E", "Which Pixar film stars a rat named Remy who wants to be a chef?", "Ratatouille", "Up", "Cars", "Brave"],
   ["E", "Who sang Rolling in the Deep?", "Adele", "Beyonce", "Rihanna", "Taylor Swift"],
-  ["E", "In Stranger Things, what is the name of the girl with psychokinetic powers?", "Eleven", "Max", "Joyce", "Nancy"],
+  ["E", "In the Netflix series set in Hawkins, Indiana, what is the name of the girl with psychokinetic powers?", "Eleven", "Max", "Joyce", "Nancy"],
   ["E", "Who played Captain Jack Sparrow in Pirates of the Caribbean?", "Johnny Depp", "Orlando Bloom", "Geoffrey Rush", "Brad Pitt"],
   ["E", "Which actor first played Tony Stark in the Marvel Cinematic Universe?", "Robert Downey Jr.", "Chris Evans", "Chris Hemsworth", "Mark Ruffalo"],
   ["E", "Which company created Mario?", "Nintendo", "Sega", "Atari", "Sony"],
@@ -601,8 +601,8 @@ TRIVIA.push(
   ["A", "Who wrote The Hobbit?", "J.R.R. Tolkien", "C.S. Lewis", "Roald Dahl", "Terry Pratchett"],
   ["A", "Who painted The Persistence of Memory with its melting clocks?", "Salvador Dali", "Rene Magritte", "Pablo Picasso", "Joan Miro"],
   ["A", "Who wrote To Kill a Mockingbird?", "Harper Lee", "Toni Morrison", "Maya Angelou", "Flannery O'Connor"],
-  ["A", "Who wrote Moby-Dick?", "Herman Melville", "Nathaniel Hawthorne", "Mark Twain", "Edgar Allan Poe"],
-  ["A", "Who composed The Four Seasons?", "Antonio Vivaldi", "Johann Sebastian Bach", "Wolfgang Amadeus Mozart", "George Frideric Handel"],
+  ["A", "Who wrote the novel about Captain Ahab and the white whale?", "Herman Melville", "Nathaniel Hawthorne", "Mark Twain", "Edgar Allan Poe"],
+  ["A", "Who composed the violin concertos Le quattro stagioni?", "Antonio Vivaldi", "Johann Sebastian Bach", "Wolfgang Amadeus Mozart", "George Frideric Handel"],
   ["A", "Which composer wrote his Ninth Symphony after losing his hearing?", "Ludwig van Beethoven", "Johannes Brahms", "Franz Schubert", "Gustav Mahler"],
   ["A", "Who wrote the science fiction novel Dune?", "Frank Herbert", "Isaac Asimov", "Arthur C. Clarke", "Philip K. Dick"],
   ["A", "Who wrote The Catcher in the Rye?", "J.D. Salinger", "Jack Kerouac", "Kurt Vonnegut", "Joseph Heller"],
@@ -804,12 +804,12 @@ TRIVIA.push(
   ["S", "Which company created the iPhone?", "Apple", "Samsung", "Google", "Nokia"],
   ["S", "Which language is mainly used to style web pages?", "CSS", "Python", "SQL", "Java"],
   ["S", "What does HTTP stand for?", "HyperText Transfer Protocol", "High Transfer Text Protocol", "HyperText Transmission Process", "Hyperlink Text Transfer Program"],
-  ["S", "Who founded Amazon?", "Jeff Bezos", "Elon Musk", "Larry Page", "Steve Jobs"],
+  ["S", "Who founded the online retailer that began in a Seattle garage in 1994?", "Jeff Bezos", "Elon Musk", "Larry Page", "Steve Jobs"],
   ["S", "Which planet is known for its prominent ring system?", "Saturn", "Jupiter", "Mars", "Venus"],
   // History
   ["H", "Who was the first president of the United States?", "George Washington", "John Adams", "Thomas Jefferson", "Benjamin Franklin"],
   ["H", "Which country gave the Statue of Liberty to the United States?", "France", "United Kingdom", "Spain", "Italy"],
-  ["H", "In what year did the Titanic sink?", "1912", "1905", "1915", "1921"],
+  ["H", "In what year did the \"unsinkable\" ocean liner sink on its maiden voyage?", "1912", "1905", "1915", "1921"],
   ["H", "Which British Prime Minister was nicknamed the Iron Lady?", "Margaret Thatcher", "Theresa May", "Angela Merkel", "Golda Meir"],
   ["H", "Whose portrait appears on the US $100 bill?", "Benjamin Franklin", "Alexander Hamilton", "Ulysses S. Grant", "Andrew Jackson"],
   ["H", "In what year did the French Revolution begin?", "1789", "1776", "1799", "1815"],
@@ -840,22 +840,22 @@ TRIVIA.push(
   ["P", "Which university's fight song is Rocky Top?", "Tennessee", "Kentucky", "Georgia", "Auburn"],
   ["P", "In bowling, what do you call three strikes in a row?", "Turkey", "Hat trick", "Triple", "Perfect"],
   ["P", "How many Grand Slam tennis tournaments are played each year?", "Four", "Three", "Five", "Six"],
-  ["P", "Which sport is played on a diamond?", "Baseball", "Cricket", "Soccer", "Football"],
+  ["P", "Which sport uses bases, a pitcher and a batter?", "Baseball", "Cricket", "Soccer", "Football"],
   ["P", "In which sport would you perform a slam dunk?", "Basketball", "Volleyball", "Handball", "Netball"],
   ["P", "Which SEC school is located in Gainesville?", "Florida", "Georgia", "Auburn", "South Carolina"],
   // Entertainment
   ["E", "Who played Batman in The Dark Knight?", "Christian Bale", "Ben Affleck", "Michael Keaton", "Robert Pattinson"],
-  ["E", "Which film won the Academy Award for Best Picture for 1997?", "Titanic", "Good Will Hunting", "L.A. Confidential", "As Good as It Gets"],
+  ["E", "Which James Cameron film won the Academy Award for Best Picture?", "Titanic", "Good Will Hunting", "L.A. Confidential", "As Good as It Gets"],
   ["E", "Which TV series is set in Westeros and features the Iron Throne?", "Game of Thrones", "The Witcher", "Vikings", "The Wheel of Time"],
   ["E", "Who is the lead singer of the band U2?", "Bono", "Sting", "Bruce Springsteen", "Mick Jagger"],
-  ["E", "Which film features the character Hannibal Lecter?", "The Silence of the Lambs", "Se7en", "Psycho", "Misery"],
+  ["E", "Which film features the cannibalistic psychiatrist Dr. Lecter?", "The Silence of the Lambs", "Se7en", "Psycho", "Misery"],
   ["E", "Who directed Pulp Fiction?", "Quentin Tarantino", "Martin Scorsese", "Steven Soderbergh", "Guy Ritchie"],
   ["E", "Which actress played Katniss Everdeen in The Hunger Games films?", "Jennifer Lawrence", "Emma Stone", "Shailene Woodley", "Kristen Stewart"],
   ["E", "What fictional city does Batman protect?", "Gotham City", "Metropolis", "Star City", "Central City"],
-  ["E", "Which band recorded Hotel California?", "Eagles", "Fleetwood Mac", "The Doors", "Creedence Clearwater Revival"],
+  ["E", "Which band recorded the 1976 album that includes Life in the Fast Lane?", "Eagles", "Fleetwood Mac", "The Doors", "Creedence Clearwater Revival"],
   ["E", "What is the name of the coffee shop in Friends?", "Central Perk", "Monk's Cafe", "Cheers", "Java Joe's"],
   ["E", "Which video game company makes Fortnite?", "Epic Games", "Activision", "Riot Games", "Valve"],
-  ["E", "Which Nintendo console launched in 2017?", "Switch", "Wii U", "3DS", "GameCube"],
+  ["E", "Which console launched in March 2017 with detachable Joy-Con controllers?", "Switch", "Wii U", "3DS", "GameCube"],
   ["E", "Which animated series is set in the town of Springfield?", "The Simpsons", "Family Guy", "South Park", "Futurama"],
   ["E", "Who played Hermione Granger in the Harry Potter films?", "Emma Watson", "Emma Stone", "Bonnie Wright", "Evanna Lynch"],
   ["E", "What is the name of Simba's father in The Lion King?", "Mufasa", "Scar", "Nala", "Rafiki"],
@@ -866,7 +866,7 @@ TRIVIA.push(
   ["E", "Which streaming service produced The Mandalorian?", "Disney+", "Netflix", "Hulu", "Prime Video"],
   // Arts & Lit
   ["A", "Who wrote the Harry Potter series?", "J.K. Rowling", "Suzanne Collins", "Stephenie Meyer", "Roald Dahl"],
-  ["A", "Who wrote A Game of Thrones?", "George R.R. Martin", "Brandon Sanderson", "Patrick Rothfuss", "Robert Jordan"],
+  ["A", "Who wrote the first novel in the A Song of Ice and Fire series?", "George R.R. Martin", "Brandon Sanderson", "Patrick Rothfuss", "Robert Jordan"],
   ["A", "Who wrote Crime and Punishment?", "Fyodor Dostoevsky", "Leo Tolstoy", "Anton Chekhov", "Nikolai Gogol"],
   ["A", "Who wrote War and Peace?", "Leo Tolstoy", "Fyodor Dostoevsky", "Ivan Turgenev", "Boris Pasternak"],
   ["A", "Who painted Girl with a Pearl Earring?", "Johannes Vermeer", "Rembrandt", "Jan van Eyck", "Frans Hals"],
@@ -1378,6 +1378,21 @@ const G_ACC = 23, FRIC = 1.8, HOLE_R = 0.22, DT = 1 / 240, SAMPLE = 0.05;
 // slopes are scaled up so the break matches how dramatic the green looks; the green has real edges the ball can fall off
 // the cup keeps a ball only if it is slow enough for how far off-center it crosses: fastest at dead center, zero speed allowed at the rim
 const CAPTURE_V = 6.5;
+const POWER_EXP = 1.25; // nonlinear power curve: finer control at short range, full range unchanged
+function effPower(p) { return 100 * Math.pow(Math.max(0, Math.min(100, p)) / 100, POWER_EXP); }
+const LIP_V = 9; // up to this speed a rim hit gets deflected around the cup; faster balls just skip over
+// Cup module: returns 'sunk' (captured), 'lip' (rim hit, ball is deflected: caller gets the new velocity) or null
+function cupCapture(d, vx, vy, nx, ny) {
+  if (d >= HOLE_R) return null;
+  const sp = Math.hypot(vx, vy), f = 1 - (d / HOLE_R) ** 2;
+  if (sp < CAPTURE_V * Math.sqrt(Math.max(0, f))) return { r: 'sunk' };
+  const vin = -(vx * nx + vy * ny); // speed toward the cup centre
+  if (sp <= LIP_V && vin > 0 && d > HOLE_R * 0.35) {
+    const k = Math.min(0.95, (d / HOLE_R) * 1.05); // the closer to the rim, the more of the inward speed is lost
+    return { r: 'lip', vx: (vx + vin * nx * k) * 0.88, vy: (vy + vin * ny * k) * 0.88 };
+  }
+  return null;
+}
 const POLE_R = 0.09, POLE_E = 0.45; // a ball too fast to drop that hits the flagstick bounces off it
 const SLOPE_K = 1.5, GREEN_W = 9.9, GREEN_NEAR = 3, GREEN_FAR = 8, GREEN_RC = 4.8;
 // how far inside the rounded-rectangle green a point (u across, v toward the hole) is; negative means off the green
@@ -1410,10 +1425,10 @@ function grade(g, x, y) {
 function r2(v) { return Math.round(v * 100) / 100; }
 function simulate(g, aimDeg, power) {
   const base = Math.atan2(g.hx, g.hy), th = base + aimDeg * Math.PI / 180;
-  const v0 = 0.12 * power;
+  const v0 = 0.12 * effPower(power);
   let x = 0, y = 0, vx = v0 * Math.sin(th), vy = v0 * Math.cos(th), t = 0, step = 0;
   const path = [0, 0];
-  let dmin = 1e9, sunk = false, fell = false, pole = false, poleT = 0;
+  let dmin = 1e9, sunk = false, fell = false, pole = false, poleT = 0, lipped = false, inRim = false;
   const sb = Math.sin(base), cb = Math.cos(base);
   while (t < 20) {
     const [gx, gy] = grade(g, x, y);
@@ -1428,7 +1443,10 @@ function simulate(g, aimDeg, power) {
     const d = Math.hypot(x - g.hx, y - g.hy);
     if (d < dmin) dmin = d;
     const s2 = Math.hypot(vx, vy);
-    if (d < HOLE_R && s2 < CAPTURE_V * Math.sqrt(Math.max(0, 1 - (d / HOLE_R) ** 2))) { sunk = true; x = g.hx; y = g.hy; path.push(r2(x), r2(y)); break; }
+    const cc = d < HOLE_R ? cupCapture(d, vx, vy, (x - g.hx) / (d || 1), (y - g.hy) / (d || 1)) : null;
+    if (d >= HOLE_R) inRim = false;
+    if (cc && cc.r === 'sunk') { sunk = true; x = g.hx; y = g.hy; path.push(r2(x), r2(y)); break; }
+    if (cc && cc.r === 'lip' && !inRim) { vx = cc.vx; vy = cc.vy; lipped = true; inRim = true; path.push(r2(x), r2(y)); }
     if (!sunk && d < POLE_R && (vx * (x - g.hx) + vy * (y - g.hy)) < 0) {
       let nx = (x - g.hx) / (d || 1), ny = (y - g.hy) / (d || 1);
       if (d < 1e-4) { const sv = Math.hypot(vx, vy) || 1; nx = -vx / sv; ny = -vy / sv; }
@@ -1448,13 +1466,13 @@ function simulate(g, aimDeg, power) {
   let out, p;
   if (sunk) { out = 'sunk'; p = 100; }
   else if (fell) { out = 'fell'; p = 0; }
-  else if (dmin < HOLE_R + 0.06) { out = 'lip'; p = 75; }
+  else if ((lipped && dist <= 1.2) || dmin < HOLE_R + 0.06) { out = 'lip'; p = 75; }
   else if (dist <= 1) { out = 'inch'; p = 50; }
   else if (dist <= 4) { out = 'near'; p = 25; }
   else { out = 'miss'; p = 0; }
-  return { path, t: (path.length / 2 - 1) * SAMPLE, out, p, d: r2(dist), fell, pole, poleT: r2(poleT) };
+  return { path, t: (path.length / 2 - 1) * SAMPLE, out, p, d: r2(dist), fell, pole, poleT: r2(poleT), lipped };
 }
-function flatFeet(power) { const v = 0.12 * power; return v * v / (2 * FRIC); }
+function flatFeet(power) { const v = 0.12 * effPower(power); return v * v / (2 * FRIC); }
 
 // ---- extra accepted answers, merged into KRILL at load. Cross-checked against public datasets (dariusk/corpora etc.) and curated by hand. ----
 (function () {
@@ -1515,6 +1533,227 @@ function flatFeet(power) { const v = 0.12 * power; return v * v / (2 * FRIC); }
   // 9 sports
   add(9, 45, 'air hockey,airsoft,aikido,angling|sport fishing,artistic gymnastics,auto racing|car racing|motorsport,axe throwing,backgammon,backstroke,baton twirling,beach tennis,beach volleyball,beer pong|beirut,bodybuilding,bouldering,bowls|lawn bowls,breaststroke,butterfly stroke,calf roping,canadian football,checkers|draughts,chess,drag racing,drone racing,esports,flag rugby,freestyle swimming,golf cart racing,hot air ballooning,ice hockey,inline skating|roller skating,laser tag,paintball,pole dancing,powerlifting,skydiving,slacklining,speedcubing,sport stacking|cup stacking,stand up paddleboarding|paddleboarding|sup,tug of war,wakesurfing,wall climbing|rock climbing'); add(9, 65, 'abseiling|rappelling,aerobic gymnastics|sport aerobics,artistic cycling,aquathlon,arena football,australian handball,ba game,ball badminton,ball hockey,bar billiards,bartitsu,beach handball,beach rugby,bicycle polo,biribol,blackball,board track racing,boli khela,bolas criollas,boule lyonnaise,box lacrosse,british bulldogs,brännboll|brannboll,bumper pool,bunnock,butts up,caid,calcio,calvinball,camogie,campdrafting,canne de combat,capture the flag,carom billiards|carom,casting|fly casting,catch wrestling,cestoball,chariot racing,charreada|charreria,chinese chess,chess boxing,cockfighting,cornhole,cricket 20,croquet golf,crossfit,cue sports,curling stones,dartchery,dodgeball,dog agility,dog sled racing,dressage,drift racing,eventing,fierljeppen,fistball,fives,flyball,footbag,foot volley,footgolf,freediving,freerunning,frisbee,gaelic handball,glima,gliding|soaring,goalball,handball,hang gliding,hapkido,hornussen,horse vaulting|equestrian vaulting,hurdling,iaido,ice stock sport|eisstock,inline hockey,jai alai,jousting,jukskei,kabbadi,kayak polo,kendo,kenjutsu,kho kho,kin-ball|kinball,kite flying,kitesurfing,knattleikr,korfball,krav maga,kronum,lawn darts,log rolling|birling,longboarding,luge,mallet sports,mini golf|miniature golf|putt-putt,motorboat racing,mountain boarding,mounted archery,muggle quidditch|quidditch,netball,ninepin bowling,octopush,orienteering,paddle tennis,pankration,parasailing,pelota,pétanque,pickleball,pitch and putt,pole vault,quad racing,racewalking|race walking,racketlon,rafting,reining,rhythmic gymnastics,ringette,rodeo,roller hockey,rope jumping|jump rope|skipping,rowing machine|erg,rugby league,rugby sevens,rugby union,sandboarding,savate,sepak takraw,shinty,shooting,shot put,shuffleboard,skeet shooting,sky running,skyrunning,snowshoeing,snooker,soap box derby,speedminton|crossminton,speed climbing,sports acrobatics,squash,stoolball,street luge,sumo,tchoukball,tennis polo,tetherball,trampolining,trap shooting,ultimate,underwater hockey,underwater rugby,vovinam,wakeboarding,wall ball,water skiing,wheelchair basketball,wheelchair rugby,wheelchair tennis,wife carrying,wushu|kung fu,yacht racing,zorbing|zorb football'); add(9, 85, 'bossaball,43-man squamish,austus,aizkolaritza,basque traditional weightlifting,bagatelle,balkline,bandy|rink bandy,baguazhang,battojutsu,beagling,big game hunting,bushwhacking,bujinkan,cammag,cheese rolling,conkers,fox hunting,hare coursing,hawking|falconry,hornussen,jereed|cirit,kabaddi,kokpar|buzkashi,laser run,mölkky|molkky,pesäpallo|pesapallo,pétanque|petanque,rock paper scissors championship,sepak raga,skijoring,stone skipping,sumo wrestling,toe wrestling,tree climbing,wellie wanging|welly wanging,worm charming');
   // 5 cheese: nothing new here (list was already large); 19/others unchanged
+
+  // ---- audit pass: extra aliases for common phrasings ----
+  alias(0,'United States','U.S.A.|U.S.A');
+  alias(1,'Cat','housecat|house cat'); alias(1,'Crocodile','croc'); alias(1,'Alligator','gator'); alias(1,'Tyrannosaurus Rex','t rex|trex|tyrannosaurus');
+  alias(3,'Mixed Breed','mutt|mongrel');
+  alias(5,'Parmesan','parmigiano|parmigiano reggiano|parmigiano-reggiano'); alias(5,'Cheez Whiz','cheez wiz');
+  alias(7,'Washington, D.C.','dc|d.c.|washington dc');
+  alias(9,'Mixed Martial Arts','ufc'); alias(9,'Formula 1','formula one|formula1');
+  alias(17,'Mercedes-Benz','merc|benz'); alias(17,'Land Rover','range rover'); alias(17,'Alfa Romeo','alfa'); alias(17,'Mini','mini cooper'); alias(17,'Lamborghini','lambo');
+  alias(31,"McDonald's",'mickey ds|mickey d\'s|micky ds'); alias(31,"Raising Cane's",'canes|cane\'s');
+  alias(45,'American Sign Language','sign language|asl');
+  alias(46,'Pound','sterling|pound sterling|british pound');
+  alias(52,'Rory McIlroy','rory'); alias(52,'Happy Gilmore','happy gilmore');
+  alias(58,'Peyton Manning','manning'); alias(58,'Joe Montana','montana'); alias(58,'Josh Allen','josh'); alias(58,'Dan Marino','marino'); alias(58,'John Elway','elway'); alias(58,'Troy Aikman','aikman'); alias(58,'Terry Bradshaw','bradshaw'); alias(58,'Joe Burrow','burrow'); alias(58,'Jalen Hurts','hurts'); alias(58,'Dak Prescott','dak');
+  alias(69,'The Rolling Stones','stones'); alias(69,'Led Zeppelin','zeppelin'); alias(69,"Guns N' Roses",'gnr');
+  add(46,25,'Bitcoin|btc'); add(46,45,'Dogecoin');
+  add(52,45,'Happy Gilmore');
+
+  // ---- new Krillion prompts (90+) ----
+  KRILL.push(
+  { p: "Name a breakfast food.", t: {
+    10: "Eggs|egg, Bacon, Pancakes|pancake, Cereal, Toast, Waffles|waffle, Oatmeal|oats, Sausage, French Toast, Bagel, Coffee, Orange Juice|oj",
+    25: "Omelette|omelet, Hash Browns|hashbrowns, Biscuits|biscuit, Yogurt|yoghurt, Muffin, Donut|doughnut, Grits, Fruit, Granola, Breakfast Burrito, Croissant, Scrambled Eggs, Ham, Cinnamon Roll, Poptart|pop tart",
+    45: "Eggs Benedict, Breakfast Sandwich, Biscuits and Gravy, Crepes|crepe, Danish, Quiche, Avocado Toast, Smoothie, Breakfast Burrito, Home Fries, Scone, Parfait, Chilaquiles, Huevos Rancheros, Breakfast Pizza, Sausage Gravy, Cream of Wheat, Danish Pastry, Frittata",
+    65: "Shakshuka, Congee|jook, Kedgeree, Full English, Scrapple, Corned Beef Hash, Steak and Eggs, Lox, Belgian Waffles, Dutch Baby, Overnight Oats, Muesli, Porridge, Blintz, Breakfast Taco, Chicken and Waffles, Beignet, Churros, Tamagoyaki, Natto, Menemen",
+    85: "Chicken Fried Steak, Breakfast Casserole, Johnnycakes, Pain au Chocolat, Pirozhki, Idli, Dosa, Arepas, Pupusas, Fry Bread, Ful Medames, Balep Korkun, Nasi Lemak, Bubur Ayam, Grillades, Scotch Egg, Black Pudding, Haggis, Bubble and Squeak, Eggs Florentine, Lorne Sausage",
+    100: "Gallo Pinto, Khachapuri, Pastel de Nata, Uttapam, Akara, Mohinga, Tsampa, Skyr, Smorrebrod, Kaiserschmarrn, Matbucha, Medianoche, Tamago Kake Gohan, Kaya Toast, Vegemite Toast, Hoppers|appa, Kolache, Pandesal, Shirred Eggs"
+  } },
+  { p: "Name a pizza topping.", t: {
+    10: "Pepperoni, Cheese, Sausage, Mushrooms|mushroom, Onions|onion, Bacon, Green Peppers|green pepper|bell pepper|peppers, Olives|olive, Pineapple, Ham",
+    25: "Extra Cheese, Black Olives, Jalapenos|jalapeno, Tomatoes|tomato, Spinach, Chicken, Ground Beef|beef|hamburger, Meatballs|meatball, Banana Peppers, Garlic, Basil, Anchovies|anchovy, Salami, Italian Sausage, Ricotta",
+    45: "Artichoke Hearts|artichoke, Bbq Chicken, Prosciutto, Arugula, Feta, Roasted Red Peppers, Pesto, Buffalo Chicken, Capicola, Pickles|pickle, Sun-dried Tomatoes|sundried tomatoes, Broccoli, Eggplant, Fresh Mozzarella|mozzarella, Goat Cheese, Corn, Cheeseburger, Ranch, Hot Honey, Oregano, Red Onion, Chili Flakes|red pepper flakes",
+    65: "Egg, Figs|fig, Truffle, Clams|clam, Shrimp, Sausage Crumbles, Pulled Pork, Mac and Cheese, Potato|potatoes, Bacon Jam, Burrata, Pears, Hot Dog, Taco Meat, Sauerkraut, Kale, Zucchini, Squash, Caramelized Onions, Lamb, Gorgonzola, Nduja",
+    85: "French Fries, Peanut Butter, Gummy Bears, Sardines, Tuna, Baked Beans, Salmon, Octopus, Peas, Cucumber, Curry, Chorizo, Mango, Avocado, Cranberry, Chocolate, Marshmallow, Coconut, Ketchup, Duck, Foie Gras",
+    100: "Cricket, Cereal, Oreos, Escargot, Liver, Tofu, Kimchi, Mashed Potatoes, Raisins, Lobster, Cotton Candy, Bubblegum, Ice Cream, Sushi, Nutella, Peeps, Spam"
+  } },
+  { p: "Name a Mexican dish or menu item.", t: {
+    10: "Tacos|taco, Burrito|burritos, Nachos|nacho, Quesadilla|quesadillas, Guacamole|guac, Enchiladas|enchilada, Fajitas|fajita, Salsa, Chips and Salsa, Queso",
+    25: "Tamales|tamale, Churros|churro, Chimichanga, Tostada, Taquitos|taquito, Rice, Refried Beans|beans, Carne Asada, Carnitas, Pozole, Flautas|flauta, Elote, Burrito Bowl, Margarita, Horchata, Sopapillas|sopapilla, Mole, Taco Salad",
+    45: "Tortilla, Chilaquiles, Huevos Rancheros, Birria, Menudo, Al Pastor, Barbacoa, Chile Relleno, Gordita, Sope, Torta, Tres Leches, Flan, Ceviche, Pico de Gallo, Empanada, Cochinita Pibil, Chorizo, Fish Taco, Street Corn, Churro Bites, Tlayuda",
+    65: "Pambazo, Tinga, Tlacoyo, Cemita, Huarache, Caldo de Res, Sopa de Tortilla, Tortilla Soup, Capirotada, Atole, Champurrado, Agua Fresca, Michelada, Paloma, Cabrito, Machaca, Carne Guisada, Enfrijoladas, Molletes, Pan Dulce, Conchas|concha, Aguachile",
+    85: "Tacos de Canasta, Chapulines, Escamoles, Cochinita, Barbacoa de Borrego, Mixiote, Chiles en Nogada, Tacos Dorados, Ensalada de Nopales, Sopa Azteca, Pipian, Tostilocos, Gorditas de Nata, Pozole Rojo, Pozole Verde, Tacos Arabes, Alambre, Chamoyada, Cocteles",
+    100: "Huitlacoche, Cuitlacoche, Tlayuda Oaxaquena, Memelas, Machitos, Gusanos de Maguey, Tacos de Cabeza, Mixiotes, Tamal Oaxaqueno, Chileatole, Tejate, Pepita de Calabaza, Tacos de Ojo, Rajas con Crema"
+  } },
+  { p: "Name a Pixar character or Toy Story character.", t: {
+    10: "Woody, Buzz Lightyear|buzz, Nemo, Dory, Lightning McQueen|mcqueen, Mater, Sulley|sullivan, Mike Wazowski|mike, Elsa",
+    25: "Jessie, Mr. Potato Head|mr potato head, Rex, Hamm, Slinky Dog|slinky, Bo Peep, Marlin, Wall-E|walle, Eve, Remy, Carl Fredricksen|carl, Russell, Dug, Boo, Merida, Joy, Sadness, Anger, Fear, Disgust, Bing Bong, Lotso",
+    45: "Forky, Andy, Sid, Zurg, Stinky Pete, Bullseye, Gill, Crush, Squirt, Bruce, Nigel, Mr. Incredible|bob parr, Elastigirl|helen parr, Dash, Violet, Jack-Jack, Frozone, Syndrome, Edna Mode|edna, Miguel, Hector, Ratatouille, Linguini, Colette, Gusteau, Anton Ego, Mr. Ray, Doc Hudson, Sally, Sarge, Fillmore, Luigi, Guido, Ramone, Flo, Sheriff, Randall, Roz, Celia, Mr. Waternoose, Hopper, Flik, Atta, Heimlich, Princess Dot",
+    65: "Arlo, Spot, Riley, Anxiety, Ennui, Envy, Embarrassment, Joe Gardner, 22, Luca, Alberto, Giulia, Mei Lee, Ian Lightfoot, Barley Lightfoot, Ember Lumen, Wade Ripple, Arlo Pizzazz, Charles Muntz, Kevin, Mr. Mime, Lots-o'-Huggin' Bear, Big Baby, Ken, Barbie, Chuckles, Bonnie, Duke Caboom, Gabby Gabby, Ducky, Bunny, Giggle McDimples, Combat Carl, Mr. Pricklepants, Trixie, Buttercup, Dolly, Chatter Telephone, Lenny, Wheezy, Al McWhiggin, Emperor Zurg, Sparks, Hannah Phillips",
+    85: "Mack, The King, Chick Hicks, Strip Weathers, Cruz Ramirez, Jackson Storm, Miss Fritter, Smokey, Finn McMissile, Holley Shiftwell, Francesco Bernoulli, Professor Z, Siddeley, Tomber, Lewis Hamilton, Mama Imelda, Dante, Ernesto de la Cruz, Pepita, Abuelita, Papa Julio, Tia Rosita, Dr. Facilier, Anton, Skinner, Emile, Django, Horst, Mustafa, Larry, Bob, Marcus, Nia, Bardo, Pete Docter, Muntz, Edgar, Dug the dog, Alpha, Beta, Gamma",
+    100: "Sid's Mutant Toys, Babyface, Legs, Jingle Joe, Rocky Gibraltar, Hamm's Piggy Bank, Mr. Spell, Etch, Lenny the Binoculars, RC, Rocky, Whiskers, Tour Guide Barbie, Sergeant, Buster, Pizza Planet Alien, Chunk, Sparks the Fire Truck"
+  } },
+  { p: "Name a Taylor Swift album (or era).", t: {
+    10: "1989, Reputation, Lover, Folklore, Evermore, Fearless, Red, Midnights, Speak Now, Taylor Swift|debut|self-titled",
+    25: "The Tortured Poets Department|ttpd, Eras Tour, Red (Taylor's Version)|red tv, 1989 (Taylor's Version)|1989 tv, Fearless (Taylor's Version)|fearless tv, Speak Now (Taylor's Version)|speak now tv",
+    45: "Midnights (3am Edition)|3am edition, The Life of a Showgirl|life of a showgirl, Folklore Deluxe, Evermore Deluxe, Lover Deluxe, Reputation Stadium Tour, Fearless Platinum Edition, Beautiful Eyes, Taylor Swift Deluxe, Live from Clear Channel Stripped",
+    65: "Speak Now World Tour Live, Holiday Collection, Sounds of the Season, The Taylor Swift Holiday Collection, Folklore: The Long Pond Studio Sessions, The More Lover Edition",
+    85: "Evermore Deluxe Edition, The Eras Tour Book, Live Phone Sessions, Beautiful Eyes EP",
+    100: "Live From Clear Channel Stripped 2008, Cats Soundtrack"
+  } },
+  { p: "Name a TV show from the 90s.", t: {
+    10: "Friends, Seinfeld, The Simpsons|simpsons, Frasier, Home Improvement, Fresh Prince of Bel-Air|fresh prince, Saved by the Bell, X-Files|the x-files, ER, Full House",
+    25: "Beverly Hills 90210|90210, Buffy the Vampire Slayer|buffy, Law & Order|law and order, Baywatch, Cheers, Roseanne, Married with Children, Boy Meets World, Dawson's Creek|dawsons creek, Everybody Loves Raymond, Mad About You, Sabrina the Teenage Witch|sabrina, Party of Five, Sister Sister, Martin, Family Matters, Wings, The Drew Carey Show, Melrose Place, Walker Texas Ranger, Xena, Hercules, NYPD Blue, Sex and the City, The Sopranos|sopranos, South Park, Rugrats, Hey Arnold, Pokemon, Dragon Ball Z, Power Rangers|mighty morphin power rangers",
+    45: "Home Improvement, Dinosaurs, Blossom, Doogie Howser, Clarissa Explains It All, All That, Kenan & Kel|kenan and kel, Salute Your Shorts, Are You Afraid of the Dark, Goosebumps, Gullah Gullah Island, Barney, Beakman's World, Bill Nye the Science Guy|bill nye, Magic School Bus, Arthur, Doug, Ren & Stimpy|ren and stimpy, Rocko's Modern Life, Daria, Beavis and Butt-Head|beavis and butthead, King of the Hill, Dexter's Laboratory, Johnny Bravo, Cow and Chicken, Animaniacs, Pinky and the Brain, Tiny Toon Adventures, Rescue 911, Unsolved Mysteries, Sliders, Quantum Leap, Star Trek Deep Space Nine|deep space nine, Babylon 5, Millennium, Touched by an Angel, 7th Heaven, Judging Amy, Ally McBeal, Dharma & Greg|dharma and greg, 3rd Rock from the Sun, Spin City, News Radio, Newsradio, Just Shoot Me, Suddenly Susan, Caroline in the City, Ellen, Murphy Brown, Coach, Evening Shade, Step by Step, Hangin' with Mr. Cooper, Kenan, Moesha, Living Single, Cosby Show, A Different World",
+    65: "Wishbone, Hang Time, California Dreams, Saved by the Bell: The New Class, Sweet Valley High, Space: Above and Beyond, Lois & Clark, Earth 2, SeaQuest DSV, Nowhere Man, Profit, Homicide: Life on the Street, Northern Exposure, Picket Fences, Twin Peaks, Chicago Hope, Early Edition, Pacific Blue, Sirens, Wonder Years, Parker Lewis Can't Lose, Salute, Hooperman, The Nanny, Boy Meets World, My So-Called Life, Freaks and Geeks, Felicity, Undeclared, Roswell, Charmed, Dark Angel, Angel, The Pretender, Millennium, Nash Bridges, Martial Law, Walker, JAG, The Practice, Law & Order SVU, Oz, Hex, Spawn, Dilbert, Duckman, Mission Hill, The Critic, Dr. Katz, The Maxx, Aeon Flux, Liquid Television",
+    85: "Brimstone, Sliders, Gargoyles, Biker Mice from Mars, Street Sharks, Captain Planet, Animorphs, VR Troopers, Big Bad Beetleborgs, Masked Rider, Super Mario Bros Super Show, Bobby's World, Eek the Cat, Tiny Toons, Taz-Mania, Cro, Wild West C.O.W.-Boys of Moo Mesa, Earthworm Jim, Stanley, Dumb and Dumber, Pepper Ann, Recess, Pepper, Hercules, Jumanji, Men in Black, Spider-Man, X-Men, Iron Man, Fantastic Four",
+    100: "Hypernauts, Phantom 2040, Skysurfer Strike Force, Exosquad, Dragon Flyz, Where on Earth is Carmen Sandiego, Mad Jack the Pirate, Bump in the Night, Mighty Max, The Wild Thornberrys"
+  } },
+  { p: "Name a Disney Channel or Nickelodeon show.", t: {
+    10: "SpongeBob SquarePants|spongebob, Hannah Montana, Phineas and Ferb, Wizards of Waverly Place, iCarly, Drake & Josh|drake and josh, Fairly OddParents|fairly odd parents, Rugrats, Lizzie McGuire, That's So Raven|thats so raven",
+    25: "Jimmy Neutron, Avatar the Last Airbender|avatar, Zoey 101, Victorious, Even Stevens, Kim Possible, Good Luck Charlie, Suite Life of Zack & Cody|suite life of zack and cody, Sonny with a Chance, Jessie, Austin & Ally, Dog with a Blog, Shake It Up, Liv and Maddie, Hey Arnold, Danny Phantom, Rocket Power, Wild Thornberrys, All That, Kenan & Kel, Amanda Show, Big Time Rush, Henry Danger, Teenage Mutant Ninja Turtles, Hey Dude, Doug, The Proud Family|proud family, Recess, Gravity Falls, Lilo & Stitch: The Series",
+    45: "Ned's Declassified, Unfabulous, Zoey, Naked Brothers Band, True Jackson VP, Mighty B, Fanboy and Chum Chum, Catdog, Angry Beavers, Aaahh!!! Real Monsters, Ahh Real Monsters, Rocko's Modern Life, Ren & Stimpy, Invader Zim, Chalkzone, Jimmy Two-Shoes, Jonas, JONAS, Cory in the House, Phil of the Future, Lab Rats, Mighty Med, Kickin' It, K.C. Undercover, Girl Meets World, Best Friends Whenever, Bunk'd, Andi Mack, Raven's Home, Stuck in the Middle, Coop & Cami, Gamer's Guide, Sam & Cat, Nicky Ricky Dicky & Dawn, Max and Shred, Bella and the Bulldogs, Make It Pop, Every Witch Way, The Thundermans|thundermans, Game Shakers, Knight Squad, School of Rock, Hunter Street, Legends of the Hidden Temple, Double Dare, Figure It Out, Guts, GUTS",
+    65: "Pepper Ann, Brand Spanking New Doug, Pete and Pete, Adventures of Pete & Pete, Clarissa Explains It All, Salute Your Shorts, Roundhouse, Kablam, KaBlam, Wow Wow Wubbzy, Tak and the Power of Juju, Mighty Magiswords, Breadwinners, Harvey Beaks, Pig Goat Banana Cricket, Welcome to the Wayne, Sanjay and Craig, Bunsen Is a Beast, T.U.F.F. Puppy, Planet Sheen, Kung Fu Panda: Legends of Awesomeness, Winx Club, Monsters vs Aliens, Penguins of Madagascar, Fish Hooks, Pair of Kings, Wander Over Yonder, Star vs the Forces of Evil, Big City Greens, Amphibia, Owl House, Hamster & Gretel, Milo Murphy's Law, DuckTales, Gargoyles, Recess",
+    85: "Yo Gabba Gabba, The Backyardigans, Dora the Explorer, Blue's Clues, Go Diego Go, Wonder Pets, Umizoomi, Team Umizoomi, Bubble Guppies, Ni Hao Kai-lan, Pinky Dinky Doo, Little Bill, Oswald, Franklin, Little Einsteins, Johnny and the Sprites, Higglytown Heroes, Handy Manny, Special Agent Oso, Jake and the Never Land Pirates, Sofia the First, Doc McStuffins, Mickey Mouse Clubhouse, Mickey Mouse Roadster Racers, Octonauts, Lion Guard, PJ Masks",
+    100: "Hello Kitty's Furry Tale Theater, Pelswick, Mad Libs, Taina, Gullah Gullah Island, Nick Arcade, Wild and Crazy Kids, Hi-5, Space Cases, My Brother and Me, 100 Deeds for Eddie McDowd, Caitlin's Way, Noah Knows Best, Journey of Allen Strange, Animorphs, Mystery Files of Shelby Woo, Roundhouse"
+  } },
+  { p: "Name a Pokemon type.", t: {
+    10: "Fire, Water, Grass, Electric, Normal, Flying, Psychic, Ghost",
+    25: "Bug, Poison, Ground, Rock, Fighting, Ice, Dragon",
+    45: "Dark, Steel, Fairy",
+    65: "Stellar",
+    85: "Shadow",
+    100: "???|question marks|unknown"
+  } },
+  { p: "Name a Mario Kart course or track.", t: {
+    10: "Rainbow Road, Bowser's Castle|bowsers castle, Moo Moo Meadows, Luigi Circuit, Mario Circuit, Wario Stadium, Mushroom Gorge, Coconut Mall, Toad's Turnpike|toads turnpike, Donut Plains",
+    25: "Baby Park, DK Mountain, Yoshi Valley, Koopa Troopa Beach, Choco Mountain, Banshee Boardwalk, Sherbet Land, Royal Raceway, Dry Dry Desert, Maple Treeway, Daisy Cruiser, Waluigi Pinball, Peach Gardens, Dolphin Shoals, Cheep Cheep Beach, Bone-Dry Dunes|bone dry dunes, Sunshine Airport, Mute City, Big Blue, Shy Guy Falls, Mount Wario, Cloudtop Cruise, Music Park, Piranha Plant Slide, Moonview Highway, Grumble Volcano",
+    45: "Delfino Square, Moonlight Mushroom, Toad Harbor, Electrodrome, Hyrule Circuit, Animal Crossing, Ice Ice Outpost, Twisted Mansion, Water Park, Super Bell Subway, Thwomp Ruins, Dragon Driftway, Mario Kart Stadium, Wario's Gold Mine|wario's gold mine, Tick-Tock Clock, Rock Rock Mountain, Yoshi Circuit, Dino Dino Jungle, Airship Fortress, Neo Bowser City, Ribbon Road, Sky Garden, Cheese Land, Snow Land, Wuhu Island Loop, Squeaky Clean Sprint, Whistlestop Summit, Los Angeles Laps, Paris Promenade, London Loop, Berlin Byways, New York Minute, Tokyo Blur, Sydney Sprint, Vancouver Velocity, Amsterdam Drift, Singapore Speedway",
+    65: "Kalimari Desert, Frappe Snowland, Rainbow Road N64, Yoshi Falls, Peach Beach, Dry Dry Ruins, Shroom Ridge, Tick-Tock, Mushroom Bridge, Lakeside Park, Riverside Park, Marble Mountain, Vanilla Lake, Ghost Valley, Bowser Castle 3, Koopa Cape, Mario Circuit 3, Cheep Cheep Island, Donut Plains 3, Wario Colosseum, Dino Dino, Desert Hills, Peach Gardens, Luigi's Mansion|luigis mansion, Shy Guy Beach, Sherbet Land GCN, Daisy Circuit, N64 Rainbow Road, Excitebike Arena, Dragon Driftway, Mount Wario, Merry Mountain, 3DS Rainbow Road, Bangkok Rush, Rome Avanti, Madrid Drive, Piranha Plant Cove, Yoshi's Island|yoshis island, Boo Lake, Wario's Galactic",
+    85: "Rainbow Road SNES, Koopa Beach 2, Chocolate Island, Ghost Valley 2, Bowser Castle 1, Battle Course, Block Fort, Double Decker, Skyscraper, Cookie Land, Big Donut, Tilt-a-Kart, Palm Shore, Barbecue Pit, Pipe Plaza, Luigi's Mansion, Battle Stadium, Funky Stadium, Nintendo GameCube, Nintendo DS, Pipe Pyramid",
+    100: "Wii Rainbow Road Remix, Mario Bros. Circuit, Wario Stadium, Wilderness, Yoshi Falls, Sunset Wilds, Koopa City, Piranha Plant Pipeline, Crash Course, Toad Circuit, Hot Air Drop, Cloudtop Cruise, Merry Mountain, Ninja Hideaway, Lakeside Park, Mushroom Bridge, Wii Moo Moo Meadows"
+  } },
+  { p: "Name a type of nut or seed.", t: {
+    10: "Peanut|peanuts, Almond|almonds, Walnut|walnuts, Cashew|cashews, Pecan|pecans, Pistachio|pistachios",
+    25: "Hazelnut|hazelnuts|filbert, Macadamia|macadamia nut, Brazil Nut|brazil nuts, Pine Nut|pine nuts|pignoli, Sunflower Seed|sunflower seeds|sunflower, Pumpkin Seed|pumpkin seeds|pepitas|pepita, Chestnut|chestnuts, Sesame Seed|sesame, Coconut",
+    45: "Chia Seed|chia, Flax Seed|flax|flaxseed, Hemp Seed|hemp|hemp hearts, Poppy Seed|poppy, Acorn, Kola Nut|cola nut, Betel Nut, Tiger Nut, Soy Nut, Cacao Bean|cocoa bean, Water Chestnut, Pili Nut, Candlenut, Hickory Nut, Beechnut",
+    65: "Butternut, Black Walnut, Ginkgo Nut, Chufa, Lotus Seed, Sacha Inchi, Baru Nut, Mongongo, Marcona Almond, Kukui Nut, Monkey Puzzle Nut, Shea Nut, Cobnut, Pecan Hickory, Buckeye, Pinon, Piñon",
+    85: "Paradise Nut, Sapucaia, Cupuacu, Ngali Nut, Hazelnut Mocha, Jackfruit Seed, Bunya Nut, Bambara Groundnut, Marula Nut, Mamoncillo, Wonderful Nut",
+    100: "Monkey Pod, Yeheb Nut, Tamarind Seed, Tahitian Chestnut, Ogbono, Shea Butter Seed, Bitter Almond, Pequi Nut"
+  } },
+  { p: "Name a type of cookie.", t: {
+    10: "Chocolate Chip, Oreo, Sugar Cookie|sugar, Oatmeal Raisin|oatmeal, Peanut Butter, Snickerdoodle, Gingerbread|ginger snap|gingersnap, Fortune Cookie, Girl Scout Cookie|thin mints|samoas",
+    25: "Macaron|macaroon, Shortbread, Biscotti, Double Chocolate Chip, White Chocolate Macadamia, Chips Ahoy, Nutter Butter, Fig Newton|fig newtons, Vanilla Wafer, Graham Cracker, Lemon Cookie, Thumbprint, Butter Cookie, Pizzelle, Madeleine, Linzer, Stroopwafel, Black and White Cookie, Whoopie Pie, Biscoff|speculoos, Wafer, Cut-out Cookie|cut out cookies",
+    45: "Molasses Cookie, Russian Tea Cake|snowball cookie|mexican wedding cookie, Hermit, Rugelach, Hamantaschen, Pfeffernusse, Springerle, Lebkuchen, Amaretti, Cantucci, Tuile, Florentine, Palmier, Alfajores|alfajor, Polvorones, Kolaczki, Spritz, Anzac Biscuit|anzac, Jammie Dodger, Digestive, Hobnob, Custard Cream, Rich Tea, Bourbon Biscuit, Choc Chip Cookie Dough, Rainbow Cookie, Pinwheel, Sandwich Cookie, Nilla Wafer, Lorna Doone, Milano, Pepperidge Farm Milano, Nutter, Thin Mints, Tagalongs, Do-si-dos|do si dos, Trefoils",
+    65: "Kourabiedes, Melomakarona, Ma'amoul|maamoul, Ghoriba, Kleicha, Springerle, Nan Khatai, Chinese Almond Cookie, Egg Roll Cookie, Butter Cookie Tin, Chocolate Crinkle, Black Walnut Cookie, Jan Hagel, Speculaas, Pepparkakor, Sandbakkels, Krumkake, Kransekake, Brandy Snap, Florentines, Lace Cookie, Ladyfinger, Savoiardi, Cat's Tongue, Langue de Chat, Sablé|sable, Spritz Cookie, Cornetti",
+    85: "Zimtsterne, Vanillekipferl, Engelsaugen, Bethmännchen, Pizzelle Italiane, Ricciarelli, Amaretti di Saronno, Brutti ma Buoni, Torcetti, Pasticciotti, Baci di Dama, Canestrelli, Cuccidati, Struffoli, Knafeh, Nankhatai, Chocolate Hazelnut Meringue, Tahini Cookie, Halva Cookie",
+    100: "Lebkuchen Herzen, Pfeffernüsse, Pepparkakor Hearts, Berlinerkranser, Fattigmann, Goro, Serinakaker, Hjortetakk, Sirupssnipper, Julekaker, Kleinur, Smultringer, Eggnog Cookie"
+  } },
+  { p: "Name a type of tool (hand tool or power tool).", t: {
+    10: "Hammer, Screwdriver, Wrench, Pliers, Saw, Drill, Tape Measure, Level, Chisel, Sander",
+    25: "Crowbar|pry bar, Hacksaw, Socket Wrench|ratchet, Utility Knife|box cutter, Wire Cutters, Vise|vice, Clamp, Allen Wrench|hex key, Staple Gun, Nail Gun, Circular Saw, Jigsaw, Table Saw, Miter Saw, Chainsaw, Router, Impact Driver, Angle Grinder|grinder, Soldering Iron, Heat Gun, Mallet, Sledgehammer, Shovel, Rake, Axe, Hoe, Pickaxe|pick axe, Plane, File, Rasp, Awl, Square, Chalk Line, Stud Finder, Multimeter, Voltage Tester",
+    45: "Hole Saw, Reciprocating Saw|sawzall, Band Saw, Scroll Saw, Belt Sander, Orbital Sander, Planer, Jointer, Lathe, Drill Press, Pipe Wrench, Torque Wrench, Adjustable Wrench|crescent wrench, Monkey Wrench, Channel Locks|tongue and groove pliers, Needle Nose Pliers, Vise Grips|locking pliers, Wire Strippers, Crimper, Caulk Gun, Putty Knife, Trowel, Float, Spud Wrench, Dremel|rotary tool, Biscuit Joiner, Pocket Hole Jig, Nail Set, Punch, Tin Snips, Bolt Cutters, Pipe Cutter, Tubing Cutter, Basin Wrench, Tile Cutter, Nibbler, Rivet Gun, Come-along, Jack, Floor Jack, Hydraulic Press, Wood Burner, Glue Gun|hot glue gun, Level Laser, Laser Level",
+    65: "Spokeshave, Drawknife, Froe, Adze, Brace and Bit, Bevel Gauge, Marking Gauge, Combination Square, Speed Square, Framing Square, Plumb Bob, Dividers, Calipers, Micrometer, Feeler Gauge, Spirit Level, Pin Punch, Center Punch, Cape Chisel, Cold Chisel, Mortise Chisel, Dovetail Saw, Coping Saw, Fret Saw, Japanese Pull Saw, Rip Saw, Crosscut Saw, Backsaw, Keyhole Saw, Pruning Saw, Pole Saw, Loppers, Post Hole Digger, Mattock, Maul, Froe Club, Gouge, Scraper, Card Scraper, Cabinet Scraper, Burnisher, Whetstone, Honing Guide, Hand Plane, Block Plane, Jack Plane, Smoothing Plane, Router Plane, Rabbet Plane",
+    85: "Scorp, Inshave, Travisher, Broad Axe, Cooper's Adze, Bruzz, Slick, Mortising Machine, Spindle Moulder, Shaper, Thicknesser, Overarm Router, Radial Arm Saw, Panel Saw, Track Saw, Pocket Jig, Domino Joiner, Festool Domino, Oscillating Multi-tool, Rotozip, Flush Trim Router, Plunge Router, Laminate Trimmer, Biscuit Cutter, Brad Nailer, Pin Nailer, Finish Nailer, Roofing Nailer, Framing Nailer, Palm Nailer",
+    100: "Stanley 55, Hollow and Round, Beading Plane, Dado Plane, Fillister, Plow Plane, Sash Fillister, Toothing Plane, Fore Plane, Jointer Plane, Scrub Plane, Shoulder Plane, Bullnose Plane, Chisel Plane, Bevel-up Plane, Wooden Moulding Plane"
+  } },
+  { p: "Name a type of weather or weather event.", t: {
+    10: "Rain, Snow, Thunderstorm|thunder, Hurricane, Tornado, Fog, Wind, Hail, Sunny|sun, Blizzard, Lightning, Cloudy|clouds",
+    25: "Sleet, Drizzle, Heat Wave, Cold Snap, Flood|flooding, Drought, Typhoon, Cyclone, Monsoon, Tsunami, Overcast, Frost, Freezing Rain, Mist, Humidity, Rainbow, Windstorm, Ice Storm, Whiteout, Haboob, Dust Storm, Wildfire",
+    45: "Waterspout, Microburst, Derecho, Nor'easter|noreaster, Squall, Gale, Gust, Downpour, Cloudburst, Flash Flood, Black Ice, Polar Vortex, Thundersnow, Graupel, Sundog, Halo, Haze, Smog, Heat Index, Wind Chill, Dew, Hoarfrost, Rime, Virga, Wall Cloud, Supercell, Funnel Cloud, Storm Surge, Dust Devil, Firenado, Landspout, Gustnado",
+    65: "Bolt from the Blue, St. Elmo's Fire, Ball Lightning, Sprites, Elves, Blue Jets, Aurora, Foehn, Chinook, Sirocco, Santa Ana, Mistral, Bora, Harmattan, Khamsin, Simoom, Williwaw, Fata Morgana, Mirage, Glory, Brocken Spectre, Crepuscular Rays, Noctilucent Clouds, Roll Cloud, Shelf Cloud, Mammatus, Lenticular, Morning Glory Cloud",
+    85: "Haar, Fret, Dzud, Pogonip, Frazil Ice, Pancake Ice, Anchor Ice, Rain Shadow, Orographic Lift, Atmospheric River, Pineapple Express, El Nino, La Nina, Dry Line, Outflow Boundary, Gust Front, Bow Echo, Hook Echo, Mesocyclone, Rear Flank Downdraft, Inflow Jet",
+    100: "Haboob Wall, Diamond Dust, Hair Ice, Thundersleet, Ice Fog, Ice Pellets, Snow Roller, Snow Squall, Lake-effect Snow, Mackerel Sky, Hole Punch Cloud, Fallstreak Hole, Kelvin-Helmholtz Clouds, Asperitas, Undulatus, Arcus, Pileus, Tuba, Shear Line"
+  } },
+  { p: "Name a Hawaiian island or a US territory.", t: {
+    10: "Oahu, Maui, Kauai, Hawaii|big island, Puerto Rico, Guam",
+    25: "Molokai, Lanai, US Virgin Islands|usvi, American Samoa, Northern Mariana Islands|saipan, Niihau",
+    45: "Kahoolawe, Midway Atoll|midway, Wake Island|wake, Palmyra Atoll|palmyra, Johnston Atoll|johnston, Navassa Island|navassa, Baker Island, Howland Island, Jarvis Island, Kingman Reef",
+    65: "St. Thomas, St. Croix, St. John, Tutuila, Rose Atoll, Swains Island, Tinian, Rota, Culebra, Vieques",
+    85: "Nihoa, Necker Island|mokumanamana, Laysan, French Frigate Shoals, Lisianski, Pearl and Hermes, Kure Atoll, Gardner Pinnacles",
+    100: "Hawaiian Islands National Wildlife Refuge, Mokoli'i, Moku Manu, Manana Island, Lehua, Kaula"
+  } },
+  { p: "Name a sandwich.", t: {
+    10: "BLT, Grilled Cheese, PB&J|peanut butter and jelly|pbj, Turkey Sandwich|turkey, Ham and Cheese|ham sandwich, Club Sandwich|club, Hamburger|burger, Hot Dog, Sub|submarine|hoagie|hero, Reuben",
+    25: "Philly Cheesesteak|cheesesteak, Tuna Melt|tuna sandwich, Chicken Salad, Egg Salad, Patty Melt, Panini, French Dip, Meatball Sub|meatball, Pulled Pork, Sloppy Joe, Po' Boy|po boy, Cuban, Monte Cristo, Italian Sub, Chicken Sandwich, Fish Sandwich|filet o fish, Gyro, Falafel, Banh Mi, Croque Monsieur, Muffuletta, Torta, Cubano, BLT Club, Corned Beef, Pastrami, Roast Beef, Grilled Chicken, Veggie Sandwich, Wrap",
+    45: "Fluffernutter, Dagwood, Elvis, Hot Brown, Kentucky Hot Brown, Chopped Cheese, Italian Beef, Lobster Roll, Maid-Rite, Horseshoe, Pork Tenderloin, Pan Bagnat, Bahn Mi, Cemita, Chivito, Choripan, Smørrebrød|smorrebrod, Katsu Sando, Egg Sando, Croque Madame, Tramezzino, Bocadillo, Montadito, Doner, Shawarma, Schnitzel Sandwich, Hot Chicken Sandwich, Spiedie, Beef on Weck, Pepper and Egg, Muffaletta, Pimento Cheese, Loose Meat, Tavern, Sloppy Joe, Gatsby, Bunny Chow, Chacarero, Lampredotto, Porchetta, Bauru",
+    65: "Pambazo, Jibarito, Medianoche, Vada Pav, Bao, Kaya Toast, Mitraillette, Francesinha, Bifana, Prego, Banh Mi Thit, Sabich, Kokoretsi, Zapiekanka, Kebab, Burek, Pljeskavica, Cevapi, Gozleme, Tonkatsu Sando, Fruit Sando, Tamago Sando, Hotteok, Schiacciata, Pissaladiere, Pan con Tomate, Pan con Chicharron, Jambon-Beurre, Pan Bagnat, Smørrebrød Danish",
+    85: "Cudighi, Salmon Burger, Wiener Schnitzel Semmel, Fischbrötchen, Currywurst Brötchen, Bretzel Sandwich, Leberkäse Semmel, Matjes Brötchen, Vlaamse Frietjes, Broodje Kroket, Broodje Haring, Broodje Bal, Kapsalon, Pitta Gyros, Souvlaki Pita, Slider, Cemita Poblana, Torta Ahogada, Guajolota, Pepito, Salchipapas, Chorizo Sandwich, Choripan Sandwich",
+    100: "Pambazo Rojo, Merenda, Sanduiche de Mortadela, Mortadela Sandwich, Bauru Brazilian, Kibe Sandwich, Barros Luco, Barros Jarpa, Lomito, Completo, Churrasco Chileno, Pan con Pavo, Pan con Lechon, Pan con Pejerrey, Pan con Chicharron Peruano, Pan Queso, Arepa Reina Pepiada, Cachapa"
+  } },
+  { p: "Name a muscle in the human body.", t: {
+    10: "Biceps|bicep, Triceps|tricep, Quadriceps|quads|quad, Hamstring|hamstrings, Glutes|gluteus maximus|glute, Abs|abdominals|abdominal, Calf|calves, Pecs|pectorals|pectoralis, Deltoid|delts|shoulder, Heart, Lats|latissimus dorsi",
+    25: "Trapezius|traps, Obliques, Hip Flexors|hip flexor, Rhomboids, Forearm, Core, Diaphragm, Gluteus Medius, Soleus, Gastrocnemius, Adductors, Abductors, Rotator Cuff, Erector Spinae, Serratus Anterior, Neck Muscles, Tongue, Masseter, Rectus Abdominis, Sartorius, Psoas",
+    45: "Pectoralis Minor, Teres Major, Teres Minor, Infraspinatus, Supraspinatus, Subscapularis, Levator Scapulae, Brachialis, Brachioradialis, Coracobrachialis, Anconeus, Pronator Teres, Supinator, Flexor Carpi Radialis, Palmaris Longus, Tibialis Anterior, Peroneus Longus, Plantaris, Popliteus, Gracilis, Pectineus, Tensor Fasciae Latae, Piriformis, Gluteus Minimus, Iliacus, Quadratus Lumborum, Transversus Abdominis, Intercostals, Temporalis, Orbicularis Oculi, Orbicularis Oris, Zygomaticus, Buccinator, Platysma, Sternocleidomastoid|scm",
+    65: "Rectus Femoris, Vastus Lateralis, Vastus Medialis, Vastus Intermedius, Biceps Femoris, Semitendinosus, Semimembranosus, Extensor Digitorum, Flexor Digitorum, Extensor Pollicis, Abductor Pollicis, Opponens Pollicis, Lumbricals, Interossei, Hypothenar, Thenar, Frontalis, Corrugator Supercilii, Procerus, Depressor Anguli Oris, Risorius, Mentalis, Splenius Capitis, Semispinalis, Multifidus, Longissimus, Iliocostalis, Spinalis, Levator Ani, Coccygeus, Obturator Internus, Gemellus, Quadratus Femoris",
+    85: "Stapedius, Tensor Tympani, Cremaster, Dartos, Detrusor, Sphincter, Arrector Pili, Ciliary Muscle, Iris Sphincter, Pupillary Dilator, Superior Oblique, Inferior Oblique, Lateral Rectus, Medial Rectus, Levator Palpebrae, Geniohyoid, Mylohyoid, Digastric, Stylohyoid, Omohyoid, Sternohyoid, Thyrohyoid, Cricothyroid, Vocalis, Thyroarytenoid, Posterior Cricoarytenoid, Palatopharyngeus",
+    100: "Plantar Interossei, Dorsal Interossei, Quadratus Plantae, Abductor Hallucis, Flexor Hallucis Brevis, Abductor Digiti Minimi, Extensor Indicis, Extensor Digiti Minimi, Anconeus Epitrochlearis, Palmaris Brevis, Pyramidalis, Subclavius, Serratus Posterior Superior, Rhomboid Minor, Longus Colli, Scalenes|scalene, Rectus Capitis"
+  } },
+  { p: "Name a famous bridge.", t: {
+    10: "Golden Gate Bridge|golden gate, Brooklyn Bridge|brooklyn, London Bridge, Tower Bridge, Sydney Harbour Bridge, Bay Bridge",
+    25: "Verrazzano-Narrows Bridge|verrazzano, George Washington Bridge|gw bridge, Rialto Bridge|rialto, Bridge of Sighs, Ponte Vecchio, Charles Bridge, Millau Viaduct, Chain Bridge, Pont Neuf, Tacoma Narrows Bridge|galloping gertie, Mackinac Bridge|mackinac, Chesapeake Bay Bridge, Seven Mile Bridge, Royal Gorge Bridge, Confederation Bridge, Ambassador Bridge, Queensboro Bridge, Manhattan Bridge, Williamsburg Bridge, Hoover Dam Bypass, Lake Pontchartrain Causeway, Akashi Kaikyo, Humber Bridge, Forth Bridge, Clifton Suspension Bridge, Oresund Bridge, Pont du Gard, Khaju Bridge, Mostar Bridge, Stari Most, Helix Bridge, Rainbow Bridge",
+    45: "Bixby Creek Bridge, Sunshine Skyway, Astoria-Megler Bridge, Golden Horn Bridge, Bosphorus Bridge, Galata Bridge, Pont Alexandre III, Pont des Arts, Pont Saint-Bénézet, Pont d'Avignon, Ponte Sant'Angelo, Ponte Milvio, Karlův Most, Széchenyi Chain Bridge, Elisabeth Bridge, Stone Bridge, Pul-i-Khaju, Si-o-se-pol, Kintai Bridge, Nihonbashi, Rainbow Bridge Tokyo, Tsing Ma Bridge, Hong Kong-Zhuhai-Macau Bridge, Danyang-Kunshan Grand Bridge, Jiaozhou Bay Bridge, Banpo Bridge, Gwangan Bridge, Howrah Bridge, Bandra-Worli Sea Link, Pamban Bridge, Vidyasagar Setu, Bhakra, 25 de Abril Bridge, Vasco da Gama Bridge, Puente Colgante, Puente de la Mujer, Ponte Rio-Niteroi",
+    65: "Salginatobel Bridge, Landwasser Viaduct, Kapellbrücke|chapel bridge, Pont de Normandie, Pont de Tancarville, Stonecutters Bridge, Russky Bridge, Kerch Bridge, Crimean Bridge, Øresund, Great Belt Bridge, Storebaelt, Vasco, Gateshead Millennium Bridge, Pulteney Bridge, Iron Bridge, Menai Suspension Bridge, Britannia Bridge, Tyne Bridge, Clifton, Infinity Bridge, Skywalk, Capilano Suspension Bridge, Sundial Bridge, Hell Gate Bridge, Rainbow Bridge Niagara, Peace Bridge, Whirlpool Bridge, Lions Gate Bridge, Pitt River Bridge, Confederation, Rio-Antirrio Bridge, Zakim Bridge",
+    85: "Ponte Rotto, Ponte Fabricio, Ponte Cestio, Ponte Sisto, Ponte Garibaldi, Ponte della Costituzione, Ponte della Libertà, Ponte dell'Accademia, Ponte degli Scalzi, Pons Fabricius, Alcantara Bridge, Puente Nuevo, Puente Romano, Puente de Triana, Pont Valentré, Pont de Pierre, Pont des Trous, Zubrzycki, Slovak National Uprising Bridge, SNP, Novi Most, Most Slobode, Beška, Bridge of Peace, Vranov, Ponte Romana",
+    100: "Rakotzbrücke|devil's bridge, Sarwar Bridge, Hussaini Hanging Bridge, Hanging Bridges of Ghasa, Pul-e-Malan, Bamiyan, Khaju, Chakzam, Kakum Canopy Walk, Living Root Bridges|living root bridge, Q'eswachaka, Keshwa Chaca, Taungthaman, U Bein Bridge, Kuthodaw, Khun Chanta, Gokteik Viaduct, Hpa-an"
+  } },
+  { p: "Name a famous painting or work of art.", t: {
+    10: "Mona Lisa, The Starry Night|starry night, The Last Supper|last supper, The Scream|scream, Girl with a Pearl Earring, The Persistence of Memory|persistence of memory, The Creation of Adam|creation of adam, The Birth of Venus|birth of venus, Guernica, American Gothic",
+    25: "Water Lilies|nympheas, Sunflowers, The Kiss|kiss, Las Meninas, The Night Watch|night watch, Whistler's Mother|whistlers mother, Nighthawks, The Great Wave off Kanagawa|great wave, Impression Sunrise, Venus de Milo, David, The Thinker|thinker, Pieta, School of Athens, Washington Crossing the Delaware, Christina's World, The Garden of Earthly Delights|garden of earthly delights, Wanderer above the Sea of Fog, The Arnolfini Portrait|arnolfini portrait, Liberty Leading the People, Campbell's Soup Cans|campbells soup cans, Marilyn Diptych, Café Terrace at Night|cafe terrace at night",
+    45: "Las Meninas, Primavera, The Raft of the Medusa|raft of the medusa, The Gleaners, Olympia, Luncheon on the Grass|le dejeuner sur l'herbe, A Sunday Afternoon on the Island of La Grande Jatte|la grande jatte, Bal du moulin de la Galette, Dance at Le Moulin de la Galette, Boating Party, Luncheon of the Boating Party, The Third of May 1808|third of may, Saturn Devouring His Son, The Tower of Babel, The Hay Wain, The Fighting Temeraire, Rain Steam and Speed, Ophelia, The Lady of Shalott, Lady of Shalott, Flaming June, The Blue Boy, Mr and Mrs Andrews, Self-Portrait, Portrait of Dr. Gachet, Bedroom in Arles, Irises, The Potato Eaters, Cafe Terrace, The Card Players, Mont Sainte-Victoire, The Bathers, Les Demoiselles d'Avignon|les demoiselles, The Old Guitarist, The Weeping Woman, Femme Nue, Composition VIII, Broadway Boogie Woogie, Red Blue Yellow, The Son of Man|son of man, The Treachery of Images|treachery of images, Golconda, The Elephants, The Temptation of St. Anthony",
+    65: "Wheatfield with Crows, Almond Blossom, The Night Cafe, The Yellow House, Starry Night over the Rhône, Rhône, Poppy Field, Woman with a Parasol, Haystacks, Rouen Cathedral, Poplars, Impression, Luncheon, A Bar at the Folies-Bergère|folies-bergere, The Absinthe Drinker, The Absinthe, Dance Class, The Dance Class, L'Absinthe, Little Dancer, Madame X, Portrait of Madame X, The Gross Clinic, Nighthawks, The Gulf Stream, Breezing Up, Snap the Whip, Cape Cod Morning, Early Sunday Morning, Automat, Chop Suey, Hotel Room, Room in New York, Summer Evening",
+    85: "The Ambassadors, The Anatomy Lesson of Dr. Nicolaes Tulp, The Jewish Bride, Night Watch, Bathsheba at Her Bath, The Milkmaid, View of Delft, The Little Street, The Art of Painting, Woman Holding a Balance, Girl Reading a Letter, The Astronomer, The Geographer, The Procuress, The Concert, The Love Letter, Officer and Laughing Girl, The Music Lesson",
+    100: "Salvator Mundi, Madonna of the Rocks, Virgin of the Rocks, Lady with an Ermine, Ginevra de' Benci, Leda and the Swan, The Tempest, Sleeping Venus, Pastoral Concert, Sacred and Profane Love, Venus of Urbino, Assumption of the Virgin, Feast of the Gods, Bacchus and Ariadne, Bacchanal of the Andrians"
+  } },
+  { p: "Name a famous scientist.", t: {
+    10: "Albert Einstein|einstein, Isaac Newton|newton, Charles Darwin|darwin, Stephen Hawking|hawking, Marie Curie|curie, Galileo Galilei|galileo, Nikola Tesla|tesla, Thomas Edison|edison, Alexander Graham Bell",
+    25: "Carl Sagan|sagan, Neil deGrasse Tyson|tyson, Louis Pasteur|pasteur, Sigmund Freud|freud, Gregor Mendel|mendel, Copernicus, Johannes Kepler|kepler, Niels Bohr|bohr, Max Planck|planck, Richard Feynman|feynman, Alan Turing|turing, Jane Goodall|goodall, Rosalind Franklin|franklin, Ada Lovelace|lovelace, Benjamin Franklin, Michael Faraday|faraday, James Clerk Maxwell|maxwell, Aristotle, Archimedes, Pythagoras, Euclid, Leonardo da Vinci|da vinci, Alexander Fleming|fleming, Edward Jenner|jenner, Jonas Salk|salk, Robert Oppenheimer|oppenheimer, Enrico Fermi|fermi, Werner Heisenberg|heisenberg, Erwin Schrodinger|schrodinger, Edwin Hubble|hubble, Bill Nye, Wright Brothers, George Washington Carver|carver",
+    45: "Antoine Lavoisier|lavoisier, Dmitri Mendeleev|mendeleev, Robert Boyle|boyle, Robert Hooke|hooke, Antonie van Leeuwenhoek|leeuwenhoek, Joseph Priestley|priestley, John Dalton|dalton, Ernest Rutherford|rutherford, J.J. Thomson|thomson, James Watson|watson, Francis Crick|crick, Linus Pauling|pauling, Barbara McClintock|mcclintock, Rachel Carson|carson, Lise Meitner|meitner, Chien-Shiung Wu|wu, Emmy Noether|noether, Katherine Johnson, Mae Jemison, Grace Hopper|hopper, Henrietta Leavitt, Cecilia Payne, Vera Rubin, Jocelyn Bell Burnell|bell burnell, Hypatia, Tycho Brahe|brahe, Giordano Bruno, Andreas Vesalius|vesalius, William Harvey|harvey, Carl Linnaeus|linnaeus, Georges Cuvier|cuvier, Alfred Wegener|wegener, Louis Leakey, Mary Anning|anning, Mary Leakey, Dian Fossey|fossey, Jacques Cousteau|cousteau, Neil Armstrong, Edward Teller, Hans Bethe, Murray Gell-Mann|gell-mann, Peter Higgs|higgs, Paul Dirac|dirac, Wolfgang Pauli|pauli, Louis de Broglie|de broglie, Satyendra Nath Bose|bose, Subrahmanyan Chandrasekhar|chandrasekhar, C.V. Raman|raman, Srinivasa Ramanujan|ramanujan, Jagadish Chandra Bose",
+    65: "Hermann von Helmholtz|helmholtz, Ludwig Boltzmann|boltzmann, Heinrich Hertz|hertz, Wilhelm Roentgen|roentgen, Henri Becquerel|becquerel, Pierre Curie, Irene Joliot-Curie, Frederick Sanger, Fred Hoyle, Georges Lemaitre|lemaitre, Arno Penzias, Robert Wilson, George Gamow|gamow, Jan Oort|oort, Gerard Kuiper|kuiper, Clyde Tombaugh|tombaugh, William Herschel|herschel, Caroline Herschel, Giovanni Cassini|cassini, Christiaan Huygens|huygens, Tycho, Ptolemy, Hipparchus, Eratosthenes, Al-Khwarizmi|khwarizmi, Ibn al-Haytham|alhazen, Avicenna|ibn sina, Averroes, Omar Khayyam, Al-Biruni, Jabir ibn Hayyan, Zhang Heng, Shen Kuo, Li Shizhen, Zu Chongzhi, Sushruta, Aryabhata, Brahmagupta, Bhaskara",
+    85: "Johann Balmer, Josiah Willard Gibbs|gibbs, Willard Libby, Glenn Seaborg|seaborg, Ernest Lawrence|lawrence, Luis Alvarez|alvarez, Walter Alvarez, Stanley Miller, Harold Urey, Sidney Fox, Svante Arrhenius|arrhenius, Fritz Haber|haber, Carl Bosch, Wilhelm Ostwald, Walther Nernst|nernst, Hermann Staudinger, Paul Ehrlich|ehrlich, Emil von Behring, Robert Koch|koch, Joseph Lister|lister, Ignaz Semmelweis|semmelweis, John Snow|snow, Florence Nightingale",
+    100: "Leopold Ruzicka, Adolf Butenandt, Richard Kuhn, Fritz Pregl, Otto Warburg, Hans Krebs, Albert Szent-Gyorgyi, Karl Landsteiner, Frederick Banting, Charles Best, John Macleod, James Collip, Selman Waksman, Gerty Cori, Carl Cori, Bernardo Houssay"
+  } }
+  );
+
+  // ---- vet rare tiers of the new prompts: keep only entries known to be real ----
+  const set = (qi, t, v) => { KRILL[qi].t[t] = v; };
+  const base = 90;
+  set(base+4, 45, "Midnights (3am Edition)|3am edition, Folklore Deluxe, Evermore Deluxe, Lover Deluxe, Fearless Platinum Edition, Taylor Swift Deluxe"); // Taylor Swift
+  set(base+4, 65, "Holiday Collection|the taylor swift holiday collection|sounds of the season, Beautiful Eyes, Speak Now World Tour Live");
+  set(base+4, 85, "Folklore: The Long Pond Studio Sessions|long pond studio sessions, Live from Clear Channel Stripped 2008|clear channel stripped");
+  set(base+4, 100, "Taylor Swift: The Eras Tour|eras tour film, Reputation Stadium Tour, Lover Live from Paris|live from paris");
+  set(base+3, 85, "Mama Imelda, Dante, Ernesto de la Cruz, Pepita, Dr. Facilier, Skinner, Emile, Django, Alpha, Beta, Gamma, Cruz Ramirez, Jackson Storm, Miss Fritter, Finn McMissile, Holley Shiftwell, Francesco Bernoulli, Edgar");
+  set(base+3, 100, "Babyface, Jingle Joe, Rocky Gibraltar, Chunk, Sparks, Combat Carl, Chatter Telephone, Hannah Phillips, Bunny, Ducky, Mr. Pricklepants, Trixie, Buttercup, Dolly");
+  set(base+3, 65, "Arlo, Spot, Riley, Anxiety, Ennui, Envy, Embarrassment, Joe Gardner, 22, Luca, Alberto, Giulia, Mei Lee, Ian Lightfoot, Barley Lightfoot, Ember Lumen, Wade Ripple, Charles Muntz, Kevin, Lots-o'-Huggin' Bear|lotso, Big Baby, Ken, Barbie, Chuckles, Bonnie, Duke Caboom, Gabby Gabby, Ducky, Bunny, Giggle McDimples, Combat Carl, Mr. Pricklepants, Trixie, Buttercup, Dolly, Wheezy, Al McWhiggin, Emperor Zurg");
+  set(base+0, 85, "Chicken Fried Steak, Breakfast Casserole, Johnnycakes, Pain au Chocolat, Idli, Dosa, Arepas, Pupusas, Ful Medames, Nasi Lemak, Scotch Egg, Black Pudding, Haggis, Bubble and Squeak, Eggs Florentine");
+  set(base+0, 100, "Gallo Pinto, Khachapuri, Pastel de Nata, Uttapam, Mohinga, Skyr, Kaiserschmarrn, Tamago Kake Gohan, Kaya Toast, Hoppers|appa, Kolache, Pandesal");
+  set(base+2, 85, "Tacos de Canasta, Chapulines, Escamoles, Mixiote, Chiles en Nogada, Tacos Dorados, Sopa Azteca, Pipian, Tostilocos, Pozole Rojo, Pozole Verde, Alambre, Chamoyada");
+  set(base+2, 100, "Huitlacoche|cuitlacoche, Memelas, Gusanos de Maguey, Tacos de Cabeza, Chileatole, Tejate");
+  set(base+8, 85, "Rainbow Road SNES, Koopa Beach, Chocolate Island, Ghost Valley, Bowser Castle 1, Block Fort, Double Decker, Skyscraper, Cookie Land, Big Donut, Palm Shore, Pipe Plaza, Luigi's Mansion|luigis mansion, Battle Course");
+  set(base+8, 100, "Wii Rainbow Road, Mario Bros. Circuit, Sunset Wilds, Koopa City, Piranha Plant Pipeline, Crash Course, Toad Circuit, Hot Air Drop, Ninja Hideaway");
+  set(base+9, 85, "Paradise Nut, Bunya Nut, Marula Nut, Bambara Groundnut, Jackfruit Seed, Cupuacu, Mongongo");
+  set(base+9, 100, "Tamarind Seed, Bitter Almond, Pequi Nut, Ogbono, Shea Nut, Yeheb Nut, Monkey Puzzle Nut");
+  set(base+10, 85, "Zimtsterne, Vanillekipferl, Ricciarelli, Baci di Dama, Canestrelli, Cuccidati, Struffoli, Brutti ma Buoni, Torcetti, Berlinerkranser, Krumkake");
+  set(base+10, 100, "Fattigmann, Sandbakkels, Kransekake, Pepparkakor, Pfeffernusse, Kleinur, Springerle, Lebkuchen");
+  set(base+11, 100, "Hollow and Round, Beading Plane, Dado Plane, Fillister Plane, Plow Plane, Toothing Plane, Scrub Plane, Shoulder Plane, Bullnose Plane");
+  set(base+12, 100, "Diamond Dust, Hair Ice, Ice Fog, Ice Pellets, Snow Roller, Snow Squall, Lake-effect Snow, Mackerel Sky, Hole Punch Cloud, Fallstreak Hole, Kelvin-Helmholtz Clouds, Asperitas, Undulatus, Arcus, Pileus");
+  set(base+12, 85, "Haar, Fret, Dzud, Pogonip, Frazil Ice, Pancake Ice, Anchor Ice, Rain Shadow, Atmospheric River, Pineapple Express, El Nino, La Nina, Dry Line, Gust Front, Bow Echo, Hook Echo, Mesocyclone");
+  set(base+13, 100, "Mokoli'i, Moku Manu, Manana Island, Lehua, Kaula");
+  set(base+14, 85, "Cudighi, Fischbroetchen, Broodje Kroket, Kapsalon, Slider, Torta Ahogada, Pepito, Salchipapas, Chorizo Sandwich, Spiedie, Beef on Weck, Hot Brown, Bifana, Francesinha, Bunny Chow");
+  set(base+14, 100, "Medianoche, Jibarito, Vada Pav, Sabich, Zapiekanka, Pljeskavica, Gozleme, Pan con Tomate, Pan con Chicharron, Jambon-Beurre, Lampredotto, Chacarero, Barros Luco, Barros Jarpa, Lomito, Completo, Bauru");
+  set(base+15, 100, "Plantar Interossei, Dorsal Interossei, Quadratus Plantae, Abductor Hallucis, Flexor Hallucis Brevis, Abductor Digiti Minimi, Extensor Indicis, Extensor Digiti Minimi, Palmaris Brevis, Pyramidalis, Subclavius, Longus Colli, Scalenes|scalene");
+  set(base+16, 85, "Pont Valentre, Pont de Pierre, Puente Nuevo, Puente de Triana, Alcantara Bridge, Ponte Sisto, Ponte Garibaldi, Ponte dell'Accademia, Ponte degli Scalzi, Pons Fabricius, Mostar Bridge, Slovak National Uprising Bridge, Novi Most");
+  set(base+16, 100, "Rakotzbrucke|devil's bridge, Hussaini Hanging Bridge, Living Root Bridge|living root bridges, Q'eswachaka, U Bein Bridge, Gokteik Viaduct, Kakum Canopy Walk, Chakzam");
+  set(base+17, 85, "The Ambassadors, The Anatomy Lesson of Dr. Nicolaes Tulp, The Jewish Bride, Bathsheba at Her Bath, The Milkmaid, View of Delft, The Little Street, The Art of Painting, Woman Holding a Balance, Girl Reading a Letter, The Astronomer, The Geographer, The Procuress, The Concert, The Love Letter, Officer and Laughing Girl, The Music Lesson");
+  set(base+17, 100, "Salvator Mundi, Madonna of the Rocks, Lady with an Ermine, Ginevra de' Benci, Leda and the Swan, The Tempest, Venus of Urbino, Assumption of the Virgin, Bacchus and Ariadne, Feast of the Gods");
+  set(base+18, 100, "Frederick Banting, Selman Waksman, Karl Landsteiner, Hans Krebs, Otto Warburg, Gerty Cori, Charles Best, Bernardo Houssay, Albert Szent-Gyorgyi");
+  set(base+5, 100, "Hypernauts, Phantom 2040, Skysurfer Strike Force, Exosquad, Dragon Flyz, Mighty Max, Bump in the Night");
+  set(base+6, 100, "Pelswick, Nick Arcade, Wild and Crazy Kids, Hi-5, Space Cases, My Brother and Me, 100 Deeds for Eddie McDowd, Caitlin's Way, Journey of Allen Strange, Mystery Files of Shelby Woo, Roundhouse");
+  // purge Pokemon type tier oddity: Stellar/Shadow are real (Tera Stellar; Shadow in XD) – fine
+
+  // ---- dedupe: a name that appears in several tiers keeps its lowest tier ----
+  KRILL.forEach(k => {
+    const seen = new Set();
+    Object.keys(k.t).map(Number).sort((a, b) => a - b).forEach(tier => {
+      k.t[tier] = k.t[tier].split(',').map(x => x.trim()).filter(Boolean).filter(raw => {
+        const key = norm(raw.split('|')[0]); if (!key || seen.has(key)) return false; seen.add(key); return true;
+      }).join(',');
+    });
+  });
+  // drop prompts with too few real answers to fill six tiers
+  KRILL.splice(97,1); KRILL.splice(94,1);
 })();
 
 // ---- Birdie Dive: tilted putting view. Draws the green as real terrain from behind the ball, with slope arrows that glide inside their own grid squares. ----
@@ -2145,6 +2384,8 @@ function makeView(cv, g, seed) {
         const st = scoreKrillion(pl.q, texts, accepted, ids.length);
         const pend = (rd.pend || []).map(p => Object.assign({}, p, { ok: accepted.has(p.k) }));
         if (!await W(() => g.collection('rounds').doc('r' + r).set(Object.assign({}, rd, { sc: st.sc, pend })))) throw new Error('w');
+        // log what the group typed that the answer bank didn't know (best effort) so the bank can grow: Firebase console -> unmatched
+        pend.forEach((p, i) => { try { db.doc('unmatched/' + gid + '_r' + r + '_' + i).set({ qi: pl.q, prompt: KRILL[pl.q].p, text: String(p.t || '').slice(0, 80), norm: p.k, accepted: !!p.ok, voters: ids.length - (p.u || []).length, ts: Date.now() }).catch(() => {}); } catch (e) {} });
         await setPhase({ phase: 'reveal', dur: D(RK) });
       } else if (S.phase === 'reveal') {
         await setPhase({ phase: 'putt', dur: D(PUTT_MS) });
