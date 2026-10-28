@@ -305,7 +305,7 @@ button.chip { cursor: pointer; min-height: 30px; }
   <footer id="foot"></footer>
 </div>
 <div id="toast" hidden></div>
-<div id="ver">v1.4</div>
+<div id="ver">v1.5</div>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
@@ -1586,13 +1586,13 @@ function makePlan(nT, nK, rnd, pick) {
 }
 
 // ---- the green and the putt ----
-const G_ACC = 23, FRIC = 1.8, HOLE_R = 0.22, DT = 1 / 240, SAMPLE = 0.05;
+const G_ACC = 23, FRIC = 1.8, HOLE_R = 0.33, DT = 1 / 240, SAMPLE = 0.05;
 // slopes are scaled up so the break matches how dramatic the green looks; the green has real edges the ball can fall off
 // the cup keeps a ball only if it is slow enough for how far off-center it crosses: fastest at dead center, zero speed allowed at the rim
-const CAPTURE_V = 6.5;
+const CAPTURE_V = 5.5;
 const POWER_EXP = 1.25; // nonlinear power curve: finer control at short range, full range unchanged
 function effPower(p) { return 100 * Math.pow(Math.max(0, Math.min(100, p)) / 100, POWER_EXP); }
-const LIP_V = 9; // up to this speed a rim hit gets deflected around the cup; faster balls just skip over
+const LIP_V = 6.6; // up to this speed a rim hit gets deflected around the cup; faster balls just skip over
 // Cup module: returns 'sunk' (captured), 'lip' (rim hit, ball is deflected: caller gets the new velocity) or null
 function cupCapture(d, vx, vy, nx, ny) {
   if (d >= HOLE_R) return null;
@@ -1605,7 +1605,10 @@ function cupCapture(d, vx, vy, nx, ny) {
   }
   return null;
 }
-const POLE_R = 0.09, POLE_E = 0.45; // a ball too fast to drop that hits the flagstick bounces off it
+// Rim roll: a ball that clips the lip rides around the edge of the cup, slowing as it goes. It drops in if it gets slow enough, or leaves along the tangent if it has the pace.
+const RIM_TURN = 0.15, RIM_SPIT = 0.6; // turn radius of the heading change (ft) and how hard it peels outward once it has used up its time on the lip
+const RIM_RHO = 1.1, RIM_DRAG = 0.5, RIM_DROP = 0.75; // ride radius as a share of the cup radius (the ball rides the drawn edge of the cup, not over the dark hole), extra drag from the edge (ft/s^2), and the speed (ft/s) below which it falls in
+const POLE_R = 0.14, POLE_E = 0.45; // pole radius plus the ball's radius, so a fast ball through the middle of the cup clips the stick; // a ball too fast to drop that hits the flagstick bounces off it
 const SLOPE_K = 1.5, GREEN_W = 9.9, GREEN_NEAR = 3, GREEN_FAR = 8, GREEN_RC = 4.8;
 // how far inside the rounded-rectangle green a point (u across, v toward the hole) is; negative means off the green
 function greenIn(g, u, v) { // superellipse: a wide, rounded oval. Distance is an estimate of feet to the edge, negative when off the green
@@ -1617,17 +1620,31 @@ function greenIn(g, u, v) { // superellipse: a wide, rounded oval. Distance is a
   const gx = Math.pow(x, n - 1) * Math.pow(r, 1 - n) / GREEN_W, gy = Math.pow(y, n - 1) * Math.pow(r, 1 - n) / hv;
   return (1 - r) / (Math.hypot(gx, gy) || 1e-6);
 }
-function makeGreen(seed) {
+function makeGreenRaw(seed) {
   const r = mulberry32(seed);
-  const D = 6.5 + r() * 19.5;
+  // every putt is 20 ft or longer (20-28 ft)
+  const wild = false, sk = 1;
+  const D = 20 + r() * 8;
   const hx = (r() - 0.5) * 2 * D * 0.2;
-  const a0 = r() * Math.PI * 2, m0 = 0.012 + r() * 0.02;
+  const a0 = r() * Math.PI * 2, m0 = (0.012 + r() * 0.02) * sk;
   const waves = [];
   for (let i = 0; i < 2; i++) {
-    const lam = 7 + r() * 10, phi = r() * Math.PI * 2, psi = r() * Math.PI * 2, amp = 0.006 + r() * 0.01;
+    const lam = 7 + r() * 10, phi = r() * Math.PI * 2, psi = r() * Math.PI * 2, amp = (0.006 + r() * 0.01) * sk;
     waves.push({ kx: Math.cos(phi) * 2 * Math.PI / lam, ky: Math.sin(phi) * 2 * Math.PI / lam, dx: Math.cos(phi), dy: Math.sin(phi), psi, amp: amp * SLOPE_K });
   }
-  return { D, near: Math.max(GREEN_NEAR + 0.5, 40 - D), hx, hy: D, gx0: Math.cos(a0) * m0 * SLOPE_K, gy0: Math.sin(a0) * m0 * SLOPE_K, waves };
+  return { D, wild, near: Math.max(GREEN_NEAR + 0.5, 40 - D), hx, hy: D, gx0: Math.cos(a0) * m0 * SLOPE_K, gy0: Math.sin(a0) * m0 * SLOPE_K, waves };
+}
+// a long putt must stay reachable: reject the rare steep-uphill green where even 92% power cannot get the ball to the cup (same seed always gives the same green)
+function makeGreen(seed) {
+  let g = null;
+  for (let k = 0; k < 40; k++) {
+    g = makeGreenRaw(seed + k * 7919);
+    for (let a = -6; a <= 6; a += 0.5) {
+      const r = previewRoll(g, a, 92);
+      for (let q = 0; q < r.pts.length / 2; q++) if (Math.hypot(r.pts[2 * q] - g.hx, r.pts[2 * q + 1] - g.hy) < 1) return g;
+    }
+  }
+  return g;
 }
 function grade(g, x, y) {
   let gx = g.gx0, gy = g.gy0;
@@ -1639,7 +1656,7 @@ function r2(v) { return Math.round(v * 100) / 100; }
 // so the length of the preview never jumps just because the ball would drop, hit the pole or leave the green. Returns x,y pairs plus the total roll length.
 function previewRoll(g, aimDeg, power) {
   const base = Math.atan2(g.hx, g.hy), th = base + aimDeg * Math.PI / 180, v0 = 0.12 * effPower(power);
-  let x = 0, y = 0, vx = v0 * Math.sin(th), vy = v0 * Math.cos(th), t = 0, step = 0, len = 0;
+  let x = 0, y = 0, vx = v0 * Math.sin(th), vy = v0 * Math.cos(th), t = 0, step = 0, len = 0; const vx0 = vx, vy0 = vy;
   const pts = [0, 0], cum = [0];
   while (t < 14) {
     const [gx, gy] = grade(g, x, y);
@@ -1649,6 +1666,7 @@ function previewRoll(g, aimDeg, power) {
     if (sp <= FRIC * DT) { vx = 0; vy = 0; if (Math.hypot(ax, ay) <= FRIC) break; } else { const k = (sp - FRIC * DT) / sp; vx *= k; vy *= k; }
     const nx = x + vx * DT, ny = y + vy * DT; len += Math.hypot(nx - x, ny - y); x = nx; y = ny; t += DT; step++;
     if (step % 6 === 0) { pts.push(x, y); cum.push(len); }
+    if (t > 0.3 && vx * vx0 + vy * vy0 < -0.17 * v0 * Math.hypot(vx, vy)) break; // the line ends where the ball turns back on itself, so steep greens do not draw loops
     if (Math.abs(x) > 60 || y > 90 || y < -40) break;
   }
   pts.push(x, y); cum.push(len);
@@ -1661,8 +1679,25 @@ function simulate(g, aimDeg, power) {
   let x = 0, y = 0, vx = v0 * Math.sin(th), vy = v0 * Math.cos(th), t = 0, step = 0;
   const path = [0, 0];
   let dmin = 1e9, sunk = false, fell = false, pole = false, poleT = 0, lipped = false, inRim = false;
+  let rim = null, rimDone = false, rimIn = false, rimT = -1;
   const sb = Math.sin(base), cb = Math.cos(base);
   while (t < 20) {
+    if (rim) { // whipping round the lip: the heading turns smoothly toward the rim's tangent (no hard bounce), rides it a while, then peels off the side
+      const dx = x - g.hx, dy = y - g.hy, d0 = Math.hypot(dx, dy) || 1e-6, R0 = HOLE_R * RIM_RHO;
+      let sp = Math.hypot(vx, vy), psi = Math.atan2(vy, vx);
+      const tau = Math.atan2(dy, dx) + rim.dir * Math.PI / 2;
+      let bias = Math.max(-0.7, Math.min(0.7, 2.5 * (R0 - d0) / R0));
+      if (rim.L > rim.Lmax) bias += RIM_SPIT;
+      let dl = tau - rim.dir * bias - psi; dl = Math.atan2(Math.sin(dl), Math.cos(dl));
+      const om = sp / RIM_TURN * DT; psi += Math.max(-om, Math.min(om, dl));
+      sp = Math.max(0, sp - (FRIC + RIM_DRAG) * DT); vx = Math.cos(psi) * sp; vy = Math.sin(psi) * sp;
+      x += vx * DT; y += vy * DT; t += DT; step++; rim.t += DT; rim.L += sp * DT;
+      const d1 = Math.hypot(x - g.hx, y - g.hy);
+      if (sp < RIM_DROP) { sunk = true; rimIn = true; x = g.hx; y = g.hy; path.push(r2(x), r2(y)); break; } // too slow to stay on the lip: it falls in
+      if ((d1 > HOLE_R * 1.25 && vx * (x - g.hx) + vy * (y - g.hy) > 0) || rim.t > 1.5) { rim = null; rimDone = true; }
+      if (step % 12 === 0) path.push(r2(x), r2(y));
+      continue;
+    }
     const [gx, gy] = grade(g, x, y);
     const ax = -G_ACC * gx, ay = -G_ACC * gy;
     vx += ax * DT; vy += ay * DT;
@@ -1676,9 +1711,13 @@ function simulate(g, aimDeg, power) {
     if (d < dmin) dmin = d;
     const s2 = Math.hypot(vx, vy);
     const cc = d < HOLE_R ? cupCapture(d, vx, vy, (x - g.hx) / (d || 1), (y - g.hy) / (d || 1)) : null;
-    if (d >= HOLE_R) inRim = false;
+    if (d >= HOLE_R * 1.05) { inRim = false; rimDone = false; }
     if (cc && cc.r === 'sunk') { sunk = true; x = g.hx; y = g.hy; path.push(r2(x), r2(y)); break; }
-    if (cc && cc.r === 'lip' && !inRim) { vx = cc.vx; vy = cc.vy; lipped = true; inRim = true; path.push(r2(x), r2(y)); }
+    if (cc && cc.r === 'lip' && !inRim && !rimDone) { // clipped the lip: start riding the rim
+      const rx0 = (x - g.hx) / (d || 1), ry0 = (y - g.hy) / (d || 1), vsp = Math.hypot(vx, vy) || 1, cross = rx0 * vy - ry0 * vx;
+      rim = { t: 0, L: 0, dir: cross >= 0 ? 1 : -1, Lmax: HOLE_R * RIM_RHO * Math.PI * (0.22 + 0.33 * Math.min(1, vsp / 6)) };
+      lipped = true; inRim = true; rimT = t; if (step % 12 === 0) path.push(r2(x), r2(y)); continue;
+    }
     if (!sunk && d < POLE_R && (vx * (x - g.hx) + vy * (y - g.hy)) < 0) {
       let nx = (x - g.hx) / (d || 1), ny = (y - g.hy) / (d || 1);
       if (d < 1e-4) { const sv = Math.hypot(vx, vy) || 1; nx = -vx / sv; ny = -vy / sv; }
@@ -1686,7 +1725,6 @@ function simulate(g, aimDeg, power) {
       vx -= (1 + POLE_E) * vn * nx; vy -= (1 + POLE_E) * vn * ny;
       x = g.hx + nx * POLE_R; y = g.hy + ny * POLE_R;
       if (!pole) { pole = true; poleT = step * DT; }
-      path.push(r2(x), r2(y));
     }
     const eu = x * cb - y * sb, ev = x * sb + y * cb;
     if (greenIn(g, eu, ev) < 0) { fell = true; path.push(r2(x), r2(y)); break; }
@@ -1702,7 +1740,7 @@ function simulate(g, aimDeg, power) {
   else if (dist <= 1) { out = 'inch'; p = 50; }
   else if (dist <= 3) { out = 'near'; p = 25; }
   else { out = 'miss'; p = 0; }
-  return { path, t: (path.length / 2 - 1) * SAMPLE, out, p, d: r2(dist), fell, pole, poleT: r2(poleT), lipped };
+  return { path, t: (path.length / 2 - 1) * SAMPLE, out, p, d: r2(dist), fell, pole, poleT: r2(poleT), lipped, rimIn, rimT: r2(rimT) };
 }
 // Putting is a multiplier on the points you earned on the question just before it.
 // Round total = question points x multiplier, so the putt adds q x (mult - 1). A floor keeps putts worth something after a blank answer.
@@ -5747,10 +5785,11 @@ var SHIFT_MIN_PROMPT = 40;                                    // small lists are
 // One camera shape for every green (height and distance scale with the green's length), so the perspective always looks the same.
 function makeView(cv, g, seed) {
   let pv = null; // cached path preview
+  const PREVIEW_FRAC = 1; // how much of the roll the preview line shows (1 = all the way to where the ball stops)
   const ctx = cv.getContext('2d');
   const INK = '#1F3A2B', W = GREEN_W, SP = 1.8, STEP = SP / 3, NC = Math.round(2 * W / STEP), ZL = 0.03;
   const REDUCE = !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
-  const TILT = 72 * Math.PI / 180, RELIEF = 1.25;
+  const TILT = 72 * Math.PI / 180, RELIEF = 1.8, ZOOM_MIN = 15;
   const vmin = -g.near, vmax = g.D + GREEN_FAR, b = Math.atan2(g.hx, g.hy);
   const NK = 7, kind = Math.floor(mulberry32(seed ^ 0x5bd1e995)() * NK);
   let w = 0, h = 0, cam = null, scene = null, banner = null, celeb = 0;
@@ -5799,11 +5838,11 @@ function makeView(cv, g, seed) {
   function fit() {
     // one fixed camera for every green, aimed at the hole: the hole, flag and horizon always sit in the same place and size.
     // Only the ball moves (up the screen on short putts, down it on long ones). Calibrated on the longest putt so it always fits.
-    const DR = 26.5, L = DR + GREEN_FAR + GREEN_NEAR;
-    cam = { phi: TILT, H: 0.18 * L, cb: DR + 0.2 * L, F: 1, cx: w / 2, cy: 0 };
+    const DR0 = 26.5, L = DR0 + GREEN_FAR + GREEN_NEAR, DR = clamp(g.D + 3, ZOOM_MIN, DR0); // the camera stays put; short putts are zoomed in so the ball and flag fill more of the screen
+    cam = { phi: TILT, H: 0.18 * L, cb: DR0 + 0.2 * L, F: 1, cx: w / 2, cy: 0 };
     const ah = -P(0, g.D, 0).y, ab = -P(0, g.D - DR, 0).y;
-    cam.F = 0.52 * h / (ah - ab); cam.cy = 0.32 * h + cam.F * ah; scene = null;
-    cam.cy += 0.32 * h - P(0, g.D, Z(0, g.D)).y; // cancel the hole's own terrain height so it sits at the same spot on every green
+    cam.F = 0.46 * h / (ah - ab); cam.cy = 0.4 * h + cam.F * ah; scene = null;
+    cam.cy += 0.4 * h - P(0, g.D, Z(0, g.D)).y; // cancel the hole's own terrain height so it sits at the same spot on every green
   }
   function size() {
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
@@ -6011,12 +6050,48 @@ function makeView(cv, g, seed) {
     line(a, { x: bx, y: by }, col, lw);
     ctx.fillStyle = col; ctx.beginPath(); ctx.moveTo(c.x, c.y); ctx.lineTo(bx - ey * hh * 0.62, by + ex * hh * 0.62); ctx.lineTo(bx + ey * hh * 0.62, by - ex * hh * 0.62); ctx.closePath(); ctx.fill();
   }
-  function ballAt(x, y, o) { // o: {col, a, s, r}
-    const [u, v] = toUV(x, y), z = Z(u, v), base = P(u, v, z), top = P(u, v, z + 0.09), rad = Math.max(4, 0.13 * base.k) * (o.r || 1) * (o.s == null ? 1 : o.s), al = o.a == null ? 1 : o.a;
+  // ---- the ball: sized by perspective (it shrinks as it rolls away) and spinning as it rolls ----
+  const CUP_FT = 0.375, BALL_FT = CUP_FT * 0.395, ROLL_FT = 0.3; // a real golf ball (1.68 in) is 0.395 of the cup (4.25 in); the cup is drawn at CUP_FT feet radius, so the ball is drawn in the same proportion. ROLL_FT sets the spin rate. // drawn radius in feet (exaggerated so it reads on a phone) and the radius the spin is computed with
+  const VIEW_E = 0.7, VC = [0, -Math.cos(VIEW_E), Math.sin(VIEW_E)], VS = [0, Math.sin(VIEW_E), Math.cos(VIEW_E)]; // toward the viewer, and screen-up
+  const DOTS = []; for (let i = 0; i < 16; i++) { const zz = 1 - 2 * (i + 0.5) / 16, rr = Math.sqrt(1 - zz * zz), ph = i * 2.39996; DOTS.push([rr * Math.cos(ph), rr * Math.sin(ph), zz]); }
+  const rmul = (R, p) => [R[0] * p[0] + R[1] * p[1] + R[2] * p[2], R[3] * p[0] + R[4] * p[1] + R[5] * p[2], R[6] * p[0] + R[7] * p[1] + R[8] * p[2]];
+  function orient(path, tt) { // rotation matrix after rolling along the path up to time tt (axis is perpendicular to travel, in screen-aligned u/v feet)
+    let R = [1, 0, 0, 0, 1, 0, 0, 0, 1]; if (!path || !(tt > 0)) return R;
+    const n = path.length / 2 - 1, f = tt / SAMPLE, last = Math.min(n, Math.floor(f)); let pu = null, pv = null;
+    const step = (x, y) => {
+      const [u, v] = toUV(x, y); if (pu !== null) {
+        const du = u - pu, dv = v - pv, d = Math.hypot(du, dv);
+        if (d > 1e-5) { const ang = d / ROLL_FT, ax = -dv / d, ay = du / d, cs = Math.cos(ang), sn = Math.sin(ang), t1 = 1 - cs; // rotate about (ax, ay, 0)
+          const M = [cs + ax * ax * t1, ax * ay * t1, ay * sn, ax * ay * t1, cs + ay * ay * t1, -ax * sn, -ay * sn, ax * sn, cs];
+          R = [M[0] * R[0] + M[1] * R[3] + M[2] * R[6], M[0] * R[1] + M[1] * R[4] + M[2] * R[7], M[0] * R[2] + M[1] * R[5] + M[2] * R[8],
+            M[3] * R[0] + M[4] * R[3] + M[5] * R[6], M[3] * R[1] + M[4] * R[4] + M[5] * R[7], M[3] * R[2] + M[4] * R[5] + M[5] * R[8],
+            M[6] * R[0] + M[7] * R[3] + M[8] * R[6], M[6] * R[1] + M[7] * R[4] + M[8] * R[7], M[6] * R[2] + M[7] * R[5] + M[8] * R[8]]; }
+      } pu = u; pv = v;
+    };
+    for (let i = 0; i <= last; i++) step(path[2 * i], path[2 * i + 1]);
+    if (last < n) { const k = f - last; step(path[2 * last] + (path[2 * last + 2] - path[2 * last]) * k, path[2 * last + 1] + (path[2 * last + 3] - path[2 * last + 1]) * k); }
+    return R;
+  }
+  function ballAt(x, y, o) { // o: {col, a, s, r, path, tt}
+    const [u, v] = toUV(x, y), z = Z(u, v), base = P(u, v, z), rad = Math.max(2, BALL_FT * base.k) * (o.r || 1) * (o.s == null ? 1 : o.s), al = o.a == null ? 1 : o.a;
     if (al <= 0) return;
+    const cx = base.x, cy = base.y - rad * Math.cos(VIEW_E); // the ball touches the ground at its lowest visible point, which is where the shadow sits
+    if (!isFinite(cx + cy + rad)) return;
     ctx.globalAlpha = al;
-    if (al >= 1) { ctx.fillStyle = 'rgba(16,38,26,0.35)'; ctx.beginPath(); ctx.ellipse(base.x + rad * 0.1, base.y - rad * 0.2, rad * 1.05, rad * 0.55, 0, 0, 7); ctx.fill(); }
-    ctx.fillStyle = o.col || '#FFFFFF'; ctx.strokeStyle = INK; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(top.x, top.y, rad, 0, 7); ctx.fill(); ctx.stroke();
+    if (al >= 1) { ctx.fillStyle = 'rgba(16,38,26,0.38)'; ctx.beginPath(); ctx.ellipse(base.x + rad * 0.4, base.y + rad * 0.02, rad * 1.1, rad * 0.42, 0, 0, 7); ctx.fill(); }
+    const gr = ctx.createRadialGradient(cx - rad * 0.35, cy - rad * 0.4, rad * 0.1, cx, cy, rad);
+    gr.addColorStop(0, '#FFFFFF'); gr.addColorStop(0.7, o.col || '#F4F4EE'); gr.addColorStop(1, '#C9CEC4');
+    ctx.fillStyle = gr; ctx.strokeStyle = INK; ctx.lineWidth = rad > 5 ? 2 : 1.4; ctx.beginPath(); ctx.arc(cx, cy, rad, 0, 7); ctx.fill(); ctx.stroke();
+    if (rad >= 2.2) { // rolling marks: a band around the ball and dimples, rotated by the distance rolled so far
+      const R = orient(o.path, o.tt), vis = p => { const q = rmul(R, p); return [q, q[0] * VC[0] + q[1] * VC[1] + q[2] * VC[2]]; };
+      const scr = q => [cx + (q[0] * 1) * rad, cy - (q[0] * 0 + q[1] * VS[1] + q[2] * VS[2]) * rad];
+      ctx.save(); ctx.beginPath(); ctx.arc(cx, cy, rad - 0.5, 0, 7); ctx.clip();
+      ctx.strokeStyle = 'rgba(214,64,52,0.85)'; ctx.lineWidth = Math.max(1.2, rad * 0.3); ctx.lineCap = 'butt'; ctx.beginPath(); let pen = false;
+      for (let k = 0; k <= 40; k++) { const th = k / 40 * 6.2832, [q, d] = vis([Math.cos(th), 0, Math.sin(th)]); if (d > 0) { const s = scr(q); pen ? ctx.lineTo(s[0], s[1]) : ctx.moveTo(s[0], s[1]); pen = true; } else pen = false; }
+      ctx.stroke();
+      ctx.fillStyle = 'rgba(31,58,43,0.35)'; DOTS.forEach(dp => { const [q, d] = vis(dp); if (d > 0.15) { const s = scr(q); ctx.beginPath(); ctx.ellipse(s[0], s[1], rad * 0.13, rad * 0.13 * (0.4 + 0.6 * d), 0, 0, 7); ctx.fill(); } });
+      ctx.restore();
+    }
     ctx.globalAlpha = 1;
   }
   function trail(path, tt, col, a, lw) {
@@ -6067,8 +6142,10 @@ function makeView(cv, g, seed) {
     }
     // hole and fluttering flag
     const hzv = Z(0, g.D), hc = P(0, g.D, hzv), ring = [], shk = o.shake || 0;
-    for (let a = 0; a < 24; a++) ring.push(P(Math.cos(a / 24 * 6.2832) * 0.26, g.D + Math.sin(a / 24 * 6.2832) * 0.26, hzv));
+    for (let a = 0; a < 24; a++) ring.push(P(Math.cos(a / 24 * 6.2832) * CUP_FT, g.D + Math.sin(a / 24 * 6.2832) * CUP_FT, hzv));
     poly(ring, '#10261A', '#EAF6E4', 2);
+    const behind = bl => toUV(bl.x, bl.y)[1] > g.D; // a ball on the far side of the cup is drawn before the flagstick, so it passes behind it
+    (o.balls || []).filter(behind).forEach(bl => ballAt(bl.x, bl.y, bl));
     const poleTop = P(Math.sin(T * 38) * 0.1 * shk, g.D, hzv + 2.6); line(hc, poleTop, '#FFFFFF', 2.5); line(hc, poleTop, INK, 1);
     const fl = [], N = 8, wob = REDUCE ? 0 : 1 + 3.5 * shk;
     for (let k = 0; k <= N; k++) { const f = k / N; fl.push(P(1.1 * f, g.D + wob * Math.sin(T * 2.6 - f * 4.2) * 0.22 * f, hzv + 2.6 - 0.3 * f + wob * Math.sin(T * 3.4 - f * 5) * 0.1 * f)); }
@@ -6081,39 +6158,40 @@ function makeView(cv, g, seed) {
     (o.trails || []).forEach(t => trail(t.path, t.tt, t.col, t.a, t.lw));
     // aim marker, pull icon
     const pw = o.power == null ? 50 : o.power, pc = mix([255, 255, 255], [255, 80, 60], pw / 100), pcs = `rgb(${pc[0]},${pc[1]},${pc[2]})`;
-    if (o.aimUI) {
+    const live = !!(o.aimUI && o.pull && o.pull.moved >= 10);
+    if (o.aimUI && !live) { const bi = P(0, 0, 0.1); ctx.fillStyle = 'rgba(255,255,255,0.92)'; ctx.strokeStyle = INK; ctx.lineWidth = 3; ctx.font = '800 12px Nunito, sans-serif'; ctx.textAlign = 'center'; const tx = 'PULL BACK TO AIM', ty = Math.min(bi.y + 34, h - 10); ctx.strokeText(tx, bi.x, ty); ctx.fillText(tx, bi.x, ty); ctx.textAlign = 'left'; }
+    if (live) {
       const th = (o.aim || 0) * Math.PI / 180, au = Math.sin(th) * 3, av = Math.cos(th) * 3, su = Math.sin(th) * 0.5, sv = Math.cos(th) * 0.5;
       const tip = P(au, av, Z(au, av) + ZL), st = P(su, sv, Z(su, sv) + ZL), pull = o.pull, org = P(0, 0, 0.1), idle = P(0, -1.5, Z(0, -1.5)), ic = pull || { x: idle.x, y: Math.min(idle.y, h - 26) };
       if (pull) { ctx.setLineDash([2, 7]); line(org, pull, INK, 5 + pw / 25); line(org, pull, pcs, 2.5 + pw / 25); ctx.setLineDash([]); }
-      arrow(st, tip, INK, 7, 15); arrow(st, tip, '#FFFFFF', 3.5, 12);
-      ctx.strokeStyle = 'rgba(255,255,255,0.9)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(tip.x, tip.y, 18, 0, 7); ctx.stroke();
       const pr = pull ? 0 : Math.sin(T * 3) * 1.5;
       ctx.fillStyle = pull ? pcs : 'rgba(255,255,255,0.55)'; ctx.strokeStyle = INK; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.arc(ic.x, ic.y, 15 + pr, 0, 7); ctx.fill(); ctx.stroke();
       ctx.lineWidth = 2; ctx.lineCap = 'round'; ctx.beginPath(); ctx.moveTo(ic.x - 8, ic.y); ctx.lineTo(ic.x + 8, ic.y); ctx.moveTo(ic.x, ic.y - 8); ctx.lineTo(ic.x, ic.y + 8); ctx.stroke();
       ctx.fillStyle = INK; ctx.beginPath(); ctx.arc(ic.x, ic.y, 2.4, 0, 7); ctx.fill();
       if (!pull) { ctx.font = '800 11px Nunito, sans-serif'; ctx.textAlign = 'center'; ctx.fillText('PULL TO AIM', ic.x, Math.min(ic.y + 31, h - 6)); ctx.textAlign = 'left'; }
     }
-    if (o.aimUI) { // path preview: the first third of the real rolling path (slopes included) for the current aim and power
+    if (live) { // path preview: the real rolling path (slopes and friction included) for the current aim and power
+      // dots are spaced 0.1 s apart, so they bunch up where the ball slows down: that is the speed cue.
       const key = (o.aim || 0).toFixed(1) + '|' + Math.round(pw);
       if (!pv || pv.key !== key) pv = Object.assign({ key }, previewRoll(g, o.aim || 0, pw));
-      const lim = pv.total / 3, pts = [];
+      const lim = pv.total * PREVIEW_FRAC, pts = [], dots = [];
       for (let q = 0; q < pv.cum.length; q++) {
-        if (pv.cum[q] <= lim) pts.push([pv.pts[2 * q], pv.pts[2 * q + 1]]);
+        if (pv.cum[q] <= lim) { pts.push([pv.pts[2 * q], pv.pts[2 * q + 1]]); if (q % 4 === 0) dots.push([pv.pts[2 * q], pv.pts[2 * q + 1], q]); }
         else { const f = (lim - pv.cum[q - 1]) / (pv.cum[q] - pv.cum[q - 1] || 1); pts.push([pv.pts[2 * q - 2] + (pv.pts[2 * q] - pv.pts[2 * q - 2]) * f, pv.pts[2 * q - 1] + (pv.pts[2 * q + 1] - pv.pts[2 * q - 1]) * f]); break; }
       }
+      const scr = (x, y) => { const [uu, vv] = toUV(x, y); return P(uu, vv, Z(uu, vv) + ZL); };
       if (pts.length > 1) {
-        const sc = pts.map(([x, y]) => { const [uu, vv] = toUV(x, y); return P(uu, vv, Z(uu, vv) + ZL); });
+        const sc = pts.map(([x, y]) => scr(x, y));
         ctx.save(); ctx.lineCap = 'round'; ctx.lineJoin = 'round';
-        for (let q = 1; q < sc.length; q++) {
-          const f = q / sc.length; ctx.globalAlpha = 1 - 0.65 * f;
-          ctx.setLineDash([]); ctx.strokeStyle = 'rgba(31,58,43,0.5)'; ctx.lineWidth = 8; ctx.beginPath(); ctx.moveTo(sc[q - 1].x, sc[q - 1].y); ctx.lineTo(sc[q].x, sc[q].y); ctx.stroke();
-          ctx.setLineDash([2, 7]); ctx.strokeStyle = '#FFE36B'; ctx.lineWidth = 5.5; ctx.beginPath(); ctx.moveTo(sc[q - 1].x, sc[q - 1].y); ctx.lineTo(sc[q].x, sc[q].y); ctx.stroke();
+        for (let q = 1; q < sc.length; q++) { // faint underlay so the dots read on any grass
+          ctx.globalAlpha = 0.5 * (1 - 0.5 * q / sc.length); ctx.strokeStyle = 'rgba(31,58,43,0.55)'; ctx.lineWidth = 4; ctx.beginPath(); ctx.moveTo(sc[q - 1].x, sc[q - 1].y); ctx.lineTo(sc[q].x, sc[q].y); ctx.stroke();
         }
+        dots.forEach(([x, y], q) => { const p = scr(x, y), f = q / Math.max(1, dots.length); ctx.globalAlpha = 1 - 0.45 * f; ctx.fillStyle = 'rgba(31,58,43,0.7)'; ctx.beginPath(); ctx.arc(p.x, p.y, 5, 0, 7); ctx.fill(); ctx.fillStyle = '#FFE36B'; ctx.beginPath(); ctx.arc(p.x, p.y, 3.4, 0, 7); ctx.fill(); });
         ctx.restore();
       }
     }
     // balls
-    (o.balls || []).forEach(bl => ballAt(bl.x, bl.y, bl));
+    (o.balls || []).filter(bl => !behind(bl)).forEach(bl => ballAt(bl.x, bl.y, bl));
     // celebration
     if (celeb) {
       const age = (now - celeb) / 1000;
@@ -6156,8 +6234,8 @@ function makeView(cv, g, seed) {
         ctx.restore();
       });
     }
-    // power readout, pinned top-right so a thumb never covers it
-    if (o.aimUI) {
+    // power readout, pinned top-right so a thumb never covers it (only while pulling)
+    if (live) {
       const bw = 112, bh = 50, bx = w - bw - 12, by = 12;
       ctx.fillStyle = 'rgba(255,255,255,0.92)'; ctx.strokeStyle = INK; ctx.lineWidth = 2.5; ctx.beginPath();
       ctx.moveTo(bx + 12, by); ctx.arcTo(bx + bw, by, bx + bw, by + bh, 12); ctx.arcTo(bx + bw, by + bh, bx, by + bh, 12); ctx.arcTo(bx, by + bh, bx, by, 12); ctx.arcTo(bx, by, bx + bw, by, 12); ctx.closePath(); ctx.fill(); ctx.stroke();
@@ -6175,7 +6253,7 @@ function makeView(cv, g, seed) {
     ball: () => P(0, 0, 0.1),
     splash(lines, win, now, stay) { banner = { lines, win, t0: now, stay: !!stay }; if (win) celeb = now; },
     resultLines(m) { // from a stored putt result
-      const base = { sunk: 'SUNK!', lip: 'Lipped out.', inch: 'Inside a foot.', near: 'Within 3 ft.', miss: 'Missed.', fell: kind === 0 ? 'Over the cliff!' : 'Off the green.' }[m.out] || 'Missed.';
+      const base = { sunk: m.rimIn ? 'Lipped in!' : 'SUNK!', lip: 'Lipped out.', inch: 'Inside a foot.', near: 'Within 3 ft.', miss: 'Missed.', fell: kind === 0 ? 'Over the cliff!' : 'Off the green.' }[m.out] || 'Missed.';
       const mult = puttMult(m.out); // always the multiplier this result really earns; nothing is shown when there is none
       return [].concat(m.pole ? ['Off the flagstick!'] : [], [base], mult > 1 ? ['×' + mult] : []);
     }
@@ -6817,7 +6895,7 @@ function makePongView(cv, rk, seed) {
           const d = putts[u] || {};
           const aim = clamp(Number.isFinite(+d.aim) ? +d.aim : 0, -hk.aimMax, hk.aimMax), power = clamp(d.power == null || !Number.isFinite(+d.power) ? 50 : +d.power, 0, 100);
           const s = hk.sim(gr, aim, power);
-          pt[u] = { aim, power, path: s.path, out: s.out, d: s.d, p: puttBonus((qsc[u] && qsc[u].q) || 0, s.out), m: puttMult(s.out), qb: Math.max(PUTT_FLOOR, (qsc[u] && qsc[u].q) || 0), t: s.t, none: !putts[u], fell: !!s.fell, pole: !!s.pole, poleT: s.poleT || 0 };
+          pt[u] = { aim, power, path: s.path, out: s.out, d: s.d, p: puttBonus((qsc[u] && qsc[u].q) || 0, s.out), m: puttMult(s.out), qb: Math.max(PUTT_FLOOR, (qsc[u] && qsc[u].q) || 0), t: s.t, none: !putts[u], fell: !!s.fell, pole: !!s.pole, poleT: s.poleT || 0, rimIn: !!s.rimIn };
           maxT = Math.max(maxT, s.t);
         }
         const rs = await g.collection('rounds').doc('r' + r).get();
@@ -7289,11 +7367,11 @@ function makePongView(cv, rk, seed) {
       powText: p => '≈ ' + Math.round(flatFeet(p)) + ' ft on flat',
       aria: 'Putting green seen from behind the ball, with moving slope arrows',
       timer: 'Shoot when you are ready. Auto-shoots at zero',
-      hint: 'Pull back below the ball like a slingshot and let go to shoot, or set the sliders and tap SHOOT. Drag right and the arrow swings left; a longer pull is more power. Arrows point downhill: faster and darker means steeper. Shoot on your own time, watch your ball, then everyone\'s shots replay together.',
+      hint: 'Pull back below the ball like a slingshot and let go to shoot. Drag right and the arrow swings left; a longer pull is more power. Arrows point downhill: faster and darker means steeper. Shoot on your own time, watch your ball, then everyone\'s shots replay together.',
       rolling: 'Rolling…',
       stakes: [['sunk', 'sink it'], ['inch', 'inside 1 ft'], ['near', 'within 3 ft']],
       tag: p => ({ sunk: 'Sunk', lip: 'Lip-out', inch: 'Inside 1 ft', near: 'Within 3 ft', miss: 'Miss', fell: 'Fell off' }[p.out] || 'Miss'),
-      banner: (m, v) => (m.out === 'sunk' ? 'Sunk it.' : m.out === 'lip' ? 'Lipped out.' : m.out === 'fell' ? (v.kind === 0 ? 'Over the cliff.' : 'Off the green.') : `${fmtDist(m.d)} away.`),
+      banner: (m, v) => (m.out === 'sunk' ? (m.rimIn ? 'Lipped in!' : 'Sunk it.') : m.out === 'lip' ? 'Lipped out.' : m.out === 'fell' ? (v.kind === 0 ? 'Over the cliff.' : 'Off the green.') : `${fmtDist(m.d)} away.`),
       label: (p, v) => p.out === 'sunk' ? 'Sunk' : p.out === 'lip' ? 'Lipped out' : p.out === 'fell' ? (v.kind === 0 ? 'Over the cliff' : 'Off the green') : fmtDist(p.d) + ' away'
     },
     pong: {
@@ -7320,6 +7398,7 @@ function makePongView(cv, rk, seed) {
     const r = S.round, seed = S.plan[r].s, kit = kitOf(r);
     let aim = 0, power = 50, locked = false, ok = false, raf = 0, sim = null, st0 = 0, popped = false;
     const cv = h('canvas', { class: 'green', 'aria-label': kit.aria });
+    if (kit.id === 'putt') { cv.style.aspectRatio = '3 / 4.5'; cv.style.maxHeight = '72vh'; } // no sliders under the green, so it gets the room
     const { g, view } = kit.make(cv, seed);
     const timer = makeTimer();
     timer.label(kit.timer);
@@ -7367,7 +7446,7 @@ function makePongView(cv, rk, seed) {
     function frame(now) {
       raf = requestAnimationFrame(frame);
       if (!sim) { view.draw(now, { aimUI: true, aim, power, pull: drag ? pull : null, balls: [{ x: 0, y: 0, col: '#FFFFFF' }] }); return; }
-      const t = (now - st0) / 1000, tt = Math.min(t, sim.t), [ex, ey, ez] = pos(sim.path, tt);
+      const t = (now - st0) / 1000, tt = clamp(t, 0, sim.t), [ex, ey, ez] = pos(sim.path, tt);
       let a = 1, s2 = 1, shake = 0;
       if (sim.fell && t > sim.t) { const tau = t - sim.t; a = clamp(1 - tau / 0.3, 0, 1); s2 = 1 - 0.5 * Math.min(tau / 0.3, 1); }
       if (sim.out === 'sunk' && t >= sim.t) a = 0;
@@ -7376,16 +7455,16 @@ function makePongView(cv, rk, seed) {
         popped = true; view.splash(view.resultLines(sim), sim.out === 'sunk', now, true);
         status.textContent = 'Waiting for everyone else. All shots replay together.';
       }
-      view.draw(now, { balls: [{ x: ex, y: ey, z: ez, a, s: s2, col: '#FFFFFF' }], trails: [{ path: sim.path, tt, col: '#FFFFFF', a: 0.95, lw: 3.5 }], shake });
+      view.draw(now, { balls: [{ x: ex, y: ey, z: ez, a, s: s2, col: '#FFFFFF', path: sim.path, tt }], trails: [{ path: sim.path, tt, col: '#FFFFFF', a: 0.95, lw: 3.5 }], shake });
     }
     function layout() { ok = view.size(); }
     return {
       root: h('div', { class: 'col' }, timer.el,
         h('div', { class: 'stage' }, cv),
-        h('div', { class: 'aimrow' }, h('span', { class: 'rowlab' }, 'Aim'), h('button', { class: 'btn nudge', 'aria-label': 'Aim left', onclick: nud(-0.5) }, '◀'), aimS.el, h('button', { class: 'btn nudge', 'aria-label': 'Aim right', onclick: nud(0.5) }, '▶')),
-        h('div', { class: 'aimrow' }, h('span', { class: 'rowlab' }, 'Power'), powS.el),
-        shootBtn,
-        h('div', { class: 'readout' }, h('span', {}, 'Aim ', aimOut), h('span', {}, 'Power ', powOut)),
+        kit.id === 'putt' ? null : h('div', { class: 'aimrow' }, h('span', { class: 'rowlab' }, 'Aim'), h('button', { class: 'btn nudge', 'aria-label': 'Aim left', onclick: nud(-0.5) }, '◀'), aimS.el, h('button', { class: 'btn nudge', 'aria-label': 'Aim right', onclick: nud(0.5) }, '▶')),
+        kit.id === 'putt' ? null : h('div', { class: 'aimrow' }, h('span', { class: 'rowlab' }, 'Power'), powS.el),
+        kit.id === 'putt' ? null : shootBtn,
+        kit.id === 'putt' ? null : h('div', { class: 'readout' }, h('span', {}, 'Aim ', aimOut), h('span', {}, 'Power ', powOut)),
         h('p', { class: 'stakes' }, (() => { const q = (((R['r' + r] || {}).sc || {})[uid] || {}).q || 0; return 'Last answer: ' + q + ' pts. ' + kit.stakes.map(s => s[1] + ' ×' + puttMult(s[0]) + ' = ' + (q + puttBonus(q, s[0]))).join(', ') + '.'; })()),
         h('p', { class: 'sub' }, kit.hint),
         status),
