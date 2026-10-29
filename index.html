@@ -7205,7 +7205,7 @@ function makeDartView(cv, g, seed) {
           const d = putts[u] || {};
           const aim = clamp(Number.isFinite(+d.aim) ? +d.aim : 0, -hk.aimMax, hk.aimMax), power = clamp(d.power == null || !Number.isFinite(+d.power) ? 50 : +d.power, 0, 100);
           const s = hk.sim(gr, aim, power);
-          pt[u] = { aim, power, path: s.path, out: s.out, d: s.d, p: puttBonus((qsc[u] && qsc[u].q) || 0, s.out), m: puttMult(s.out), qb: Math.max(PUTT_FLOOR, (qsc[u] && qsc[u].q) || 0), t: s.t, none: !putts[u], fell: !!s.fell, pole: !!s.pole, poleT: s.poleT || 0, rimIn: !!s.rimIn, gd: s.gd, floor: s.floor };
+          pt[u] = { aim, power, path: s.path, out: s.out, d: s.d, p: puttBonus((qsc[u] && qsc[u].q) || 0, s.out), m: puttMult(s.out), qb: Math.max(PUTT_FLOOR, (qsc[u] && qsc[u].q) || 0), t: s.t, none: !putts[u], fell: !!s.fell, pole: !!s.pole, poleT: s.poleT || 0, rimIn: !!s.rimIn, gd: typeof s.gd === 'number' ? s.gd : null, floor: !!s.floor };
           maxT = Math.max(maxT, s.t);
         }
         const rs = await g.collection('rounds').doc('r' + r).get();
